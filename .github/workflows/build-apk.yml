@@ -24,7 +24,8 @@ jobs:
           distribution: 'temurin'
 
       - name: Build the APK
-        run: ./gradlew assembleRelease  # Build APK with Gradle
+        #run: ./gradlew assembleRelease  # Build APK with Gradle
+        run: ./gradlew assembleDebug
 
       - name: Debug APK File
         run: ls -la app/build/outputs/apk/release/
