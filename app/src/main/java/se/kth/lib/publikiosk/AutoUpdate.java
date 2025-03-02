@@ -1,7 +1,5 @@
 package se.kth.lib.publikiosk;
 
-package com.example.autoupdate;
-
 import android.app.DownloadManager;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
