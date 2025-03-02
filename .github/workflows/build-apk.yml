@@ -21,7 +21,7 @@ jobs:
         uses: actions/setup-java@v2
         with:
           java-version: '11'
-          distribution: 'adoptopenjdk'  # Lägg till denna rad
+          distribution: 'temurin'
 
       - name: Build the APK
         run: ./gradlew assembleRelease  # Kör gradle kommando för att bygga APK
