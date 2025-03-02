@@ -26,6 +26,9 @@ jobs:
       - name: Build the APK
         run: ./gradlew assembleRelease  # Build APK with Gradle
 
+      - name: Debug APK File
+        run: ls -la app/build/outputs/apk/release/
+
       - name: Extract version from build.gradle
         id: get_version
         run: |
