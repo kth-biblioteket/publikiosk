@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    >
+
+    <VideoView
+        android:id="@+id/splash_video"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+    <ImageView
+        android:id="@+id/overlay_image"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:src="@drawable/screen_bg_kth_logo_navy"
+        android:layout_gravity="center"/>
+
+    <LinearLayout
+        android:id="@+id/label_map_group"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:orientation="vertical"
+        android:gravity="center_horizontal">
+        <TextView
+            android:id="@+id/label_map_sv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center|top"
+            android:padding="24dp"
+            android:text="Karta"
+            android:textColor="#FFFFFF"
+            android:textSize="180dp" />
+
+        <TextView
+            android:id="@+id/label_map_en"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:padding="0dp"
+            android:layout_marginTop="-50dp"
+            android:text="Map"
+            android:textColor="#6298D2"
+            android:textSize="180dp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/proceed_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginBottom="50dp"
+        android:layout_marginEnd="50dp"
+        android:padding="20dp"
+        android:text="START"
+        android:textColor="#FFFFFF"
+        android:background="#30FFFFFF"
+        android:textSize="100dp" />
+
+</FrameLayout>

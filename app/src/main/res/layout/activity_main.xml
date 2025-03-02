@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/drawer_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/main"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        tools:context=".MainActivity">
+
+        <WebView
+            android:id="@+id/myWeb"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            />
+
+        <!-- Invisible overlay for click tracking -->
+        <View
+            android:id="@+id/trigger_area"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:background="@android:color/transparent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_margin="0dp"/>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <ScrollView
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:layout_gravity="start">
+        <LinearLayout
+            android:id="@+id/settings_drawer"
+            android:layout_width="500dp"
+            android:layout_height="match_parent"
+            android:layout_gravity="start"
+            android:orientation="vertical"
+            android:background="@android:color/white"
+            android:padding="16dp"
+            android:fitsSystemWindows="true">
+
+            <TextView
+                android:id="@+id/resolutionTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Upplösning: "
+                android:textSize="20sp"
+                android:textColor="#000000"
+                android:layout_gravity="center"/>
+            <TextView
+                android:id="@+id/label_header"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Inställningar"
+                android:textSize="36sp"
+                android:layout_marginBottom="20dp"/>
+            <TextView
+                android:id="@+id/label_inactivitytimeout"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Timeout för inaktivitet"
+                android:textSize="16sp"
+                android:layout_marginBottom="0dp"/>
+            <EditText
+                android:id="@+id/inactivitytimeout_input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:autofillHints=""
+                android:hint="Enter Timeout Value"
+                android:inputType="textUri"
+                android:text="10000"
+                android:layout_marginBottom="10dp"/>
+
+            <TextView
+                android:id="@+id/label_inactivitytimeoutweb"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Timeout för inaktivitet extern web"
+                android:textSize="16sp"
+                android:layout_marginBottom="0dp"/>
+            <EditText
+                android:id="@+id/inactivitytimeoutweb_input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:autofillHints=""
+                android:hint="Enter Timeout Value"
+                android:inputType="textUri"
+                android:text="10000"
+                android:layout_marginBottom="10dp"/>
+
+            <TextView
+                android:id="@+id/label_initialscale"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Initial Scale"
+                android:textSize="16sp"
+                android:layout_marginBottom="0dp"/>
+            <EditText
+                android:id="@+id/initialscale_input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:autofillHints=""
+                android:hint="Enter Scale Value"
+                android:inputType="textUri"
+                android:text="100"
+                android:layout_marginBottom="10dp"/>
+            <TextView
+                android:id="@+id/label_url"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="URL för startsida"
+                android:textSize="16sp"
+                android:layout_marginBottom="0dp"/>
+            <EditText
+                android:id="@+id/url_input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Enter URL"
+                android:inputType="textUri"
+                android:text="https://wagnerguide.com/c/kth/kth"
+                android:layout_marginBottom="10dp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Select Orientation:" />
+
+            <Spinner
+                android:id="@+id/orientation_spinner"
+                android:layout_width="200dp"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"/>
+
+            <CheckBox
+                android:id="@+id/fullscreen_checkbox"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Enable Full Screen"
+                android:layout_marginBottom="20dp"/>
+
+            <CheckBox
+                android:id="@+id/splashscreen_checkbox"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Enable Splash Screen"
+                android:layout_marginBottom="20dp"/>
+
+            <CheckBox
+                android:id="@+id/splashscreenvideo_checkbox"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Enable Splash Screen Video"
+                android:layout_marginBottom="20dp"/>
+
+            <TextView
+                android:id="@+id/label_pincode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/pin_code_label"
+                android:textSize="16sp"
+                android:layout_marginBottom="0dp"/>
+            <EditText
+                android:id="@+id/pincode_input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:autofillHints=""
+                android:hint="@string/pin_code_label"
+                android:inputType="textUri"
+                android:layout_marginBottom="10dp"/>
+
+            <!-- Save Button -->
+            <Button
+                android:id="@+id/save_button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Save" />
+
+            <Button
+                android:id="@+id/showLogButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Visa Log"
+                android:layout_gravity="center" />
+
+            <Button
+                android:id="@+id/quitKiosk"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Avsluta kioskläge"
+                android:layout_gravity="center" />
+
+            <!-- TextView to display log content -->
+            <TextView
+                android:id="@+id/logTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:scrollbars="vertical"
+                android:textSize="16sp"
+                android:padding="16dp" />
+        </LinearLayout>
+    </ScrollView>
+</androidx.drawerlayout.widget.DrawerLayout>

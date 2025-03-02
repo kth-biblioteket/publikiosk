@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">PubLiKiosk</string>
+    <string-array name="orientation_options">
+        <item>Portrait</item>
+        <item>Landscape</item>
+    </string-array>
+    <string name="pin_code_label">Pin Code</string>
+    <string name="device_admin_name">deviceadmin</string>
+</resources>
