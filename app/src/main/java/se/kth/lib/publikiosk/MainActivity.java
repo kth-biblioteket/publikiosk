@@ -555,6 +555,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
+        // Startar auto-uppdateringen direkt när appen startas
+        AutoUpdate autoUpdate = new AutoUpdate(this);
+        autoUpdate.checkForUpdate(); // <-- Här triggas uppdateringen
     }
 
     @Override
