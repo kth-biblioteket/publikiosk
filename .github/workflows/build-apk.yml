@@ -26,9 +26,26 @@ jobs:
       - name: Build the APK
         run: ./gradlew assembleRelease  # Build APK with Gradle
 
+      - name: Extract version from build.gradle
+        id: get_version
+        run: |
+          # Extract versionCode and versionName from build.gradle
+          VERSION_NAME=$(grep versionName app/build.gradle | head -n 1 | sed 's/.*"\(.*\)".*/\1/')
+          VERSION_CODE=$(grep versionCode app/build.gradle | head -n 1 | sed 's/.*\([0-9]*\).*/\1/')
+          echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+          echo "Tagging release as $VERSION_NAME"
+
+      - name: Create Git tag
+        run: |
+          # Create a tag using versionName (e.g., v1.0.0)
+          git tag v${{ env.VERSION_NAME }}
+          git push origin v${{ env.VERSION_NAME }}  # Push the tag to GitHub
+
       - name: Upload APK to GitHub releases
         uses: softprops/action-gh-release@v1
         with:
           files: app/build/outputs/apk/release/app-release.apk  # Path to your built APK
+          tag_name: v${{ env.VERSION_NAME }}  # Use the versionName from the gradle file as the tag
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Use GitHub token for creating the release
