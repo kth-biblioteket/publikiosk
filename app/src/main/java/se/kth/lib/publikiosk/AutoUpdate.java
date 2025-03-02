@@ -1,122 +1,136 @@
 package se.kth.lib.publikiosk;
 
+import android.app.DownloadManager;
 import android.content.Context;
-import android.os.AsyncTask;
 import android.content.Intent;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.net.Uri;
-import android.os.Build;
-import androidx.core.content.FileProvider;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
+import android.os.AsyncTask;
+import android.os.Environment;
+import android.util.Log;
 
-import org.json.JSONException;
 import org.json.JSONObject;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
 public class AutoUpdate {
 
-    private static final String GITHUB_RELEASES_API_URL = "https://api.github.com/repos/kth-biblioteket/publikiosk/releases/latest";
+    private static final String TAG = "AutoUpdate";
+    private static final String API_URL = "https://api.github.com/repos/kth-biblioteket/publikiosk/releases/latest";
+    private Context context;
 
-    // Callback interface to notify MainActivity about the update check result
-    public interface UpdateCheckListener {
-        void onUpdateAvailable(String newVersion);
+    public AutoUpdate(Context context) {
+        this.context = context;
     }
 
-    // Method to start checking for updates
-    public static void checkForUpdates(Context context, UpdateCheckListener listener) {
-        new CheckForUpdateTask(context, listener).execute();
+    public void checkForUpdate() {
+        new CheckVersionTask().execute();
     }
 
-    // AsyncTask to check if there's a new version available on GitHub
-    private static class CheckForUpdateTask extends AsyncTask<Void, Void, String> {
-
-        private Context context;
-        private UpdateCheckListener listener;
-
-        public CheckForUpdateTask(Context context, UpdateCheckListener listener) {
-            this.context = context;
-            this.listener = listener;
-        }
+    private class CheckVersionTask extends AsyncTask<Void, Void, String> {
 
         @Override
         protected String doInBackground(Void... voids) {
-            String latestVersion = null;
             try {
-                OkHttpClient client = new OkHttpClient();
-                Request request = new Request.Builder().url(GITHUB_RELEASES_API_URL).build();
-                Response response = client.newCall(request).execute();
+                URL url = new URL(API_URL);
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("GET");
+                connection.setRequestProperty("Accept", "application/vnd.github.v3+json");
 
-                if (response.isSuccessful()) {
-                    String jsonResponse = response.body().string();
-                    JSONObject jsonObject = new JSONObject(jsonResponse);
-                    latestVersion = jsonObject.getString("tag_name");  // v3.5.2, etc.
+                BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                StringBuilder json = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    json.append(line);
+                }
+                reader.close();
+
+                JSONObject jsonResponse = new JSONObject(json.toString());
+                String latestVersion = jsonResponse.getString("tag_name");
+                String downloadUrl = jsonResponse.getJSONArray("assets")
+                        .getJSONObject(0)
+                        .getString("browser_download_url");
+
+                Log.d(TAG, "Latest version: " + latestVersion);
+                Log.d(TAG, "Download URL: " + downloadUrl);
+
+                String currentVersion = getCurrentVersion();
+                Log.d(TAG, "Current version: " + currentVersion);
+
+                if (isNewerVersion(currentVersion, latestVersion)) {
+                    Log.d(TAG, "New version found! Downloading...");
+                    downloadAndInstall(downloadUrl);
+                } else {
+                    Log.d(TAG, "App is already up-to-date");
                 }
 
-            } catch (IOException | JSONException e) {
-                e.printStackTrace();
+            } catch (Exception e) {
+                Log.e(TAG, "Error checking for update", e);
             }
-            return latestVersion;
-        }
-
-        @Override
-        protected void onPostExecute(String result) {
-            super.onPostExecute(result);
-            if (result != null && listener != null) {
-                listener.onUpdateAvailable(result);  // Notify listener with the new version
-            }
+            return null;
         }
     }
 
-    // Method to download APK from GitHub
-    public static void downloadAPK(Context context, String downloadUrl) {
-        new AsyncTask<String, Void, Void>() {
-            @Override
-            protected Void doInBackground(String... urls) {
-                try {
-                    OkHttpClient client = new OkHttpClient();
-                    Request request = new Request.Builder().url(urls[0]).build();
-                    Response response = client.newCall(request).execute();
+    private String getCurrentVersion() {
+        try {
+            PackageInfo packageInfo = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
+            return packageInfo.versionName;
+        } catch (PackageManager.NameNotFoundException e) {
+            Log.e(TAG, "Unable to get current version", e);
+            return "0.0.0";
+        }
+    }
 
-                    if (response.isSuccessful()) {
-                        InputStream inputStream = response.body().byteStream();
-                        File apkFile = new File(context.getExternalFilesDir(null), "new_app.apk");
-                        FileOutputStream fileOutputStream = new FileOutputStream(apkFile);
-                        byte[] buffer = new byte[1024];
-                        int len;
-                        while ((len = inputStream.read(buffer)) > 0) {
-                            fileOutputStream.write(buffer, 0, len);
-                        }
-                        fileOutputStream.close();
-                        inputStream.close();
+    private boolean isNewerVersion(String current, String latest) {
+        return latest.compareTo(current) > 0;  // Simple version comparison
+    }
 
-                        // Install APK after download
-                        installAPK(context, apkFile);
+    private void downloadAndInstall(String downloadUrl) {
+        DownloadManager.Request request = new DownloadManager.Request(Uri.parse(downloadUrl));
+        request.setTitle("Downloading Update");
+        request.setDescription("Downloading latest version...");
+        request.setDestinationInExternalFilesDir(context, Environment.DIRECTORY_DOWNLOADS, "update.apk");
+        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+
+        DownloadManager manager = (DownloadManager) context.getSystemService(Context.DOWNLOAD_SERVICE);
+        long downloadId = manager.enqueue(request);
+
+        // Listen when download completes
+        new Thread(() -> {
+            boolean downloading = true;
+
+            while (downloading) {
+                DownloadManager.Query query = new DownloadManager.Query();
+                query.setFilterById(downloadId);
+                var cursor = manager.query(query);
+                if (cursor.moveToFirst()) {
+                    int status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS));
+                    if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                        downloading = false;
+                        String fileUri = cursor.getString(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_LOCAL_URI));
+                        installApk(Uri.parse(fileUri));
                     }
-                } catch (IOException e) {
+                }
+                cursor.close();
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-                return null;
             }
-        }.execute(downloadUrl);
+        }).start();
     }
 
-    // Install the downloaded APK
-    private static void installAPK(Context context, File apkFile) {
-        Uri apkUri;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            apkUri = FileProvider.getUriForFile(context, "se.kth.lib.publikiosk.fileprovider", apkFile);
-        } else {
-            apkUri = Uri.fromFile(apkFile);
-        }
-
-        Intent intent = new Intent(Intent.ACTION_VIEW);
-        intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);  // Grant permission for API level 24+
+    private void installApk(Uri apkUri) {
+        Intent intent = new Intent(Intent.ACTION_INSTALL_PACKAGE);
+        intent.setData(apkUri);
+        intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
         context.startActivity(intent);
     }
 }
+
+
