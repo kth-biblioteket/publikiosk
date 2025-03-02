@@ -6,6 +6,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.graphics.Rect;
 import android.os.Bundle;
 import android.os.Environment;
@@ -555,9 +557,25 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
-        // Startar auto-uppdateringen direkt när appen startas
-        //AutoUpdate autoUpdate = new AutoUpdate(this);
-        //autoUpdate.checkForUpdate(); // <-- Här triggas uppdateringen
+        // Check for updates when the app starts
+        AutoUpdate.checkForUpdates(this, new AutoUpdate.UpdateCheckListener() {
+            @Override
+            public void onUpdateAvailable(String newVersion) {
+                String currentVersion = "0.0.0"; // Fallback version if something goes wrong
+                try {
+                    PackageInfo pInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
+                    currentVersion = pInfo.versionName;
+                } catch (PackageManager.NameNotFoundException e) {
+                    e.printStackTrace();
+                }
+
+                if (newVersion.compareTo(currentVersion) > 0) {
+                    // New version available, download the APK
+                    String downloadUrl = "https://github.com/kth-biblioteket/publikiosk/releases/download/" + newVersion + "/app-release-unsigned.apk";
+                    AutoUpdate.downloadAPK(MainActivity.this, downloadUrl);
+                }
+            }
+        });
     }
 
     @Override
