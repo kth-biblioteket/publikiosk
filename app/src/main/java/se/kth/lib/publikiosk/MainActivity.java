@@ -575,7 +575,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onStart() {
         super.onStart();
         AutoUpdate updateManager = new AutoUpdate(this);
-        //updateManager.checkForUpdate();
+        updateManager.checkForUpdate();
         TextView currentVersion = findViewById(R.id.currentVersion);
         currentVersion.setText("Aktuell version: " + updateManager.getCurrentVersion());
     }

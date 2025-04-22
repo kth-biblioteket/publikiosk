@@ -56,7 +56,7 @@ public class AutoUpdate {
                 JSONObject jsonResponse = new JSONObject(json.toString());
                 String latestVersion = jsonResponse.getString("tag_name");
                 String downloadUrl = jsonResponse.getJSONArray("assets")
-                        .getJSONObject(0)
+                        .getJSONObject(1)
                         .getString("browser_download_url");
 
                 Log.d(TAG, "Latest version: " + latestVersion);
