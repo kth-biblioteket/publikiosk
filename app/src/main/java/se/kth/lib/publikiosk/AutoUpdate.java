@@ -10,9 +10,12 @@ import android.os.AsyncTask;
 import android.os.Environment;
 import android.util.Log;
 
+import androidx.core.content.FileProvider;
+
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -28,6 +31,7 @@ public class AutoUpdate {
     }
 
     public void checkForUpdate() {
+        Log.d(TAG, "checkForUpdate");
         new CheckVersionTask().execute();
     }
 
@@ -75,7 +79,7 @@ public class AutoUpdate {
         }
     }
 
-    private String getCurrentVersion() {
+    public String getCurrentVersion() {
         try {
             PackageInfo packageInfo = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
             return packageInfo.versionName;
@@ -86,7 +90,28 @@ public class AutoUpdate {
     }
 
     private boolean isNewerVersion(String current, String latest) {
-        return latest.compareTo(current) > 0;  // Simple version comparison
+        try {
+            String[] currentParts = current.replace("v", "").split("\\.");
+            String[] latestParts = latest.replace("v", "").split("\\.");
+
+            int currentMajor = Integer.parseInt(currentParts[0]);
+            int currentMinor = Integer.parseInt(currentParts[1]);
+            int currentPatch = Integer.parseInt(currentParts[2]);
+
+            int latestMajor = Integer.parseInt(latestParts[0]);
+            int latestMinor = Integer.parseInt(latestParts[1]);
+            int latestPatch = Integer.parseInt(latestParts[2]);
+
+            if (latestMajor > currentMajor) return true;
+            if (latestMajor == currentMajor && latestMinor > currentMinor) return true;
+            if (latestMajor == currentMajor && latestMinor == currentMinor && latestPatch > currentPatch) return true;
+
+            return false;
+
+        } catch (Exception e) {
+            Log.e(TAG, "Version parsing error", e);
+            return false;  // Fail-safe to avoid auto-download
+        }
     }
 
     private void downloadAndInstall(String downloadUrl) {
@@ -126,10 +151,33 @@ public class AutoUpdate {
     }
 
     private void installApk(Uri apkUri) {
-        Intent intent = new Intent(Intent.ACTION_INSTALL_PACKAGE);
-        intent.setData(apkUri);
-        intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
-        context.startActivity(intent);
+        try {
+            Log.e(TAG, "Installing: " + apkUri);
+
+            File file = new File(apkUri.getPath());
+            if (!file.exists()) {
+                Log.e(TAG, "APK file does not exist!");
+                return;
+            }
+
+            Log.e(TAG, "File found. Preparing installation...");
+
+            Uri contentUri = FileProvider.getUriForFile(context, "se.kth.lib.publikiosk.provider", file);
+            Log.e(TAG, "Content URI: " + contentUri);
+
+            Intent intent = new Intent(Intent.ACTION_INSTALL_PACKAGE);
+            intent.setData(contentUri);
+            intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+            intent.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true);
+            intent.putExtra(Intent.EXTRA_RETURN_RESULT, true);
+
+            Log.e(TAG, "Starting installation intent...");
+            context.startActivity(intent);
+            Log.e(TAG, "Installation intent sent...");
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error installing APK", e);
+        }
     }
 }
 

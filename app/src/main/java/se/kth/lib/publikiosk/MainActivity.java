@@ -21,10 +21,12 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewTreeObserver;
+import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.JsResult;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.AdapterView;
@@ -184,7 +186,14 @@ public class MainActivity extends AppCompatActivity {
 
         //Gör så att javascript kan användas
         myWeb.getSettings().setJavaScriptEnabled(true);
-        myWeb.getSettings().setUserAgentString("Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36");
+        //Gör så att webview agerar som desktop
+        myWeb.getSettings().setUserAgentString("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+
+
+        myWeb.getSettings().setDomStorageEnabled(true);
+        myWeb.getSettings().setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        CookieManager.getInstance().setAcceptCookie(true);
+        CookieManager.getInstance().setAcceptThirdPartyCookies(myWeb, true);
         myWeb.addJavascriptInterface(new WebAppInterface(this), "Android");
 
         //Se till att alerts från websidor visas(exvis vid delete av bokning)
@@ -204,9 +213,16 @@ public class MainActivity extends AppCompatActivity {
             // Skapa javascript på laddad websida(lägger till en knapp med länk tillbaks till huvudsida)
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
+                Log.d("publikiosk", "onPageFinished: ");
 
-                //Hantera att sidor använder redirects
+
+                // Hantera att initiala sidan kan använda redirects
+                // Exempelvis wagnerguide.com/c/kth/kth går först till wagnerguide.com innan den slutligen hamnar på wagnerguide.com/c/kth/kth
                 if (isInitialLoading) {
+                    Log.d("publikiosk", "isInitialLoading");
+                    Log.d("publikiosk", "savedUrl: " + savedUrl);
+                    Log.d("publikiosk", "url: " + url);
+                    Log.d("publikiosk", String.valueOf(url.equals(savedUrl)));
                     if (url.equals(savedUrl)) {
                         isInitialLoading = false;
                     } else {
@@ -215,7 +231,8 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 // Om det inte är den initials sidan så visa en navigationsknapp
-                if (isUserNavigation && !url.startsWith(savedUrl)) {
+                if (isUserNavigation && !url.equals(savedUrl)) {
+                    Log.d("publikiosk", "extern sida");
                     new Handler().postDelayed(() -> {
                             String js = "javascript:(function() {" +
                                 "function getParameterByName(name, url) {" +
@@ -558,7 +575,9 @@ public class MainActivity extends AppCompatActivity {
     protected void onStart() {
         super.onStart();
         AutoUpdate updateManager = new AutoUpdate(this);
-        updateManager.checkForUpdate();
+        //updateManager.checkForUpdate();
+        TextView currentVersion = findViewById(R.id.currentVersion);
+        currentVersion.setText("Aktuell version: " + updateManager.getCurrentVersion());
     }
 
     @Override

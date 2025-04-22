@@ -4,10 +4,10 @@
     <selectionStates>
       <SelectionState runConfigName="app">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2025-03-02T07:21:31.865059Z">
+        <DropdownSelection timestamp="2025-04-22T09:41:10.467306Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="LocalEmulator" identifier="path=/Users/tholind/.android/avd/ELO_Backpack_4_API_29.avd" />
+              <DeviceId pluginId="PhysicalDevice" identifier="serial=J215A40982" />
             </handle>
           </Target>
         </DropdownSelection>

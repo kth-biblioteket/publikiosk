@@ -48,6 +48,14 @@
             android:fitsSystemWindows="true">
 
             <TextView
+                android:id="@+id/currentVersion"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="20sp"
+                android:textColor="#000000"
+                android:layout_gravity="center"/>
+
+            <TextView
                 android:id="@+id/resolutionTextView"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
