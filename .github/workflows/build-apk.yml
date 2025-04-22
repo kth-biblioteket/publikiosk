@@ -23,9 +23,22 @@ jobs:
           java-version: '17'  # Use Java 17 for Android Gradle plugin 8.7.0
           distribution: 'temurin'
 
+      - name: Decode keystore from secret
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+
       - name: Build the APK
         #run: ./gradlew assembleRelease  # Build APK with Gradle
         run: ./gradlew assembleDebug
+
+      - name: Build release APK
+        run: ./gradlew assembleRelease
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Show APK path
+        run: ls -l app/build/outputs/apk/release/
 
       - name: Debug APK File
         run: ls -lR app/build/outputs/apk/
@@ -50,6 +63,14 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: app/build/outputs/apk/debug/app-debug.apk  # Path to your built APK
+          tag_name: v${{ env.VERSION_NAME }}  # Use the versionName from the gradle file as the tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Use GitHub token for creating the release
+
+      - name: Upload APK to GitHub releases
+        uses: softprops/action-gh-release@v1
+        with:
+          files: app/build/outputs/apk/release/app-release.apk
           tag_name: v${{ env.VERSION_NAME }}  # Use the versionName from the gradle file as the tag
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Use GitHub token for creating the release
