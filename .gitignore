@@ -1,17 +1,72 @@
-*.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/release
-/captures
-.externalNativeBuild
-.cxx
+# Gradle files
+.gradle/
+build/
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Local configuration file (sdk path, etc.)
 local.properties
-release.keystore
+
+# Log files
+*.log
+
+# Android Studio specific
+.idea/
+*.iml
+*.iws
+*.ipr
+.idea/caches/
+.idea/libraries/
+.idea/modules.xml
+.idea/workspace.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+
+# Keystore files (DO NOT ignore if you want to track them!)
+*.jks
+*.keystore
+
+# Signing configs (if hardcoded)
+signing.properties
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Kotlin/Java
+*.class
+
+# Generated files
+gen/
+out/
+captures/
+output.json
+
+# Crashlytics/Firebase
+crashlytics-build.properties
+fabric.properties
+
+# Proguard
+proguard/*.txt
+proguard/*.pro
+
+# NDK
+obj/
+
+# Google Services (Keep if using Firebase and tracking the file!)
+# Comment the next line if you want to track google-services.json
+google-services.json
+
+# Misc
+*.apk
+*.ap_
+*.dex
+
+# Unit test reports
+test-output/
+
+# Android Gradle Plugin specific cache
+.cxx/
+
+# IDE config
+.vscode/
