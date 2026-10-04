@@ -121,6 +121,9 @@ public class MainActivity extends AppCompatActivity {
         DevicePolicyManager devicePolicyManager = (DevicePolicyManager) getSystemService(Context.DEVICE_POLICY_SERVICE);
         ComponentName componentName = new ComponentName(this, MyDeviceAdminReceiver.class);
 
+
+        setContentView(R.layout.activity_main);
+
         // Är appen "device owner?"
         if (devicePolicyManager.isDeviceOwnerApp(getPackageName())) {
             // Låt appen sätta locktask utan att en användardialg visas
@@ -129,15 +132,16 @@ public class MainActivity extends AppCompatActivity {
             AutoUpdate updateManager = new AutoUpdate(this);
             updateManager.checkForUpdate();
             TextView currentVersion = findViewById(R.id.currentVersion);
-            currentVersion.setText("Aktuell version: " + updateManager.getCurrentVersion());
+            if (currentVersion != null) {
+                currentVersion.setText(
+                        "Aktuell version: " + updateManager.getCurrentVersion());
+            }
 
             startLockTask();
             Toast.makeText(this, "Kiosk startad", Toast.LENGTH_SHORT).show();
         } else {
             Toast.makeText(this, "Appen är inte device owner", Toast.LENGTH_SHORT).show();
         }
-
-        setContentView(R.layout.activity_main);
 
         myWeb = findViewById(R.id.myWeb);
         ConstraintLayout myMain = findViewById(R.id.main);
