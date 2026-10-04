@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageInstaller;
+import android.os.Bundle;
 import android.util.Log;
 
 public class UpdateReceiver extends BroadcastReceiver {
@@ -15,12 +16,21 @@ public class UpdateReceiver extends BroadcastReceiver {
 
         int status = intent.getIntExtra(
                 PackageInstaller.EXTRA_STATUS,
-                PackageInstaller.STATUS_FAILURE
+                -999
         );
 
         String message = intent.getStringExtra(
                 PackageInstaller.EXTRA_STATUS_MESSAGE
         );
+
+        Log.d(TAG, "========== INSTALL CALLBACK ==========");
+        Log.d(TAG, "Status: " + status);
+        Log.d(TAG, "Message: " + message);
+
+        Bundle extras = intent.getExtras();
+        if (extras != null) {
+            Log.d(TAG, "Extras: " + extras);
+        }
 
         switch (status) {
 
@@ -44,14 +54,16 @@ public class UpdateReceiver extends BroadcastReceiver {
 
                 break;
 
+            case PackageInstaller.STATUS_FAILURE:
+                Log.e(TAG, "Generic install failure");
+                break;
+
             default:
-                Log.e(
-                        TAG,
-                        "Installation failed. Status="
+                Log.e(TAG,
+                        "Install result. Status="
                                 + status
                                 + " Message="
-                                + message
-                );
+                                + message);
         }
     }
 }
