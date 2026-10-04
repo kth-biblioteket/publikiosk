@@ -14,5 +14,6 @@ https://myelo.elotouch.com/support/s/article/Factory-Data-Reset-Elo-Android-I-Se
 
 ### Upgrade WebView
 https://www.apkmirror.com/apk/google-inc/android-system-webview/
+https://www.apkmirror.com/apk/google-inc/trichrome-library/trichrome-library-133-0-6943-137-release/trichrome-library-133-0-6943-137-2-android-apk-download/
 adb install ~/Downloads/trichrome133.apk
 adb install -r ~/Downloads/webview133.apk

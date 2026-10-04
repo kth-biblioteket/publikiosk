@@ -87,6 +87,9 @@
                 <data android:scheme="package"/>
             </intent-filter>
         </receiver>
+        <receiver
+            android:name=".UpdateReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

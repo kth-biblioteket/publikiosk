@@ -126,10 +126,10 @@ public class MainActivity extends AppCompatActivity {
             // Låt appen sätta locktask utan att en användardialg visas
             devicePolicyManager.setLockTaskPackages(componentName, new String[]{getPackageName()});
 
-            //AutoUpdate updateManager = new AutoUpdate(this);
-            //updateManager.checkForUpdate();
-            //TextView currentVersion = findViewById(R.id.currentVersion);
-            //currentVersion.setText("Aktuell version: " + updateManager.getCurrentVersion());
+            AutoUpdate updateManager = new AutoUpdate(this);
+            updateManager.checkForUpdate();
+            TextView currentVersion = findViewById(R.id.currentVersion);
+            currentVersion.setText("Aktuell version: " + updateManager.getCurrentVersion());
 
             startLockTask();
             Toast.makeText(this, "Kiosk startad", Toast.LENGTH_SHORT).show();
