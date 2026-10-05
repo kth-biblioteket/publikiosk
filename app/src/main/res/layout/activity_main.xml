@@ -22,11 +22,12 @@
             app:layout_constraintTop_toTopOf="parent"
             />
 
-        <!-- Invisible overlay for click tracking -->
+        <!-- Osynlig yta nere till höger: 5 snabba tryck öppnar menyn. Hög nog för att dess övre del
+             ska ligga ovanför navigeringsfältets yta (där systemet fångar trycken) på alla skärmar. -->
         <View
             android:id="@+id/trigger_area"
-            android:layout_width="20dp"
-            android:layout_height="20dp"
+            android:layout_width="48dp"
+            android:layout_height="96dp"
             android:background="@android:color/transparent"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"

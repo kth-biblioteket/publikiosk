@@ -51,6 +51,23 @@ public class UrlPolicy {
         return allows(https) ? https : null;
     }
 
+    /**
+     * Samma sida: samma värd och sökväg, oavsett snedstreck på slutet, frågeparametrar och #
+     * (https://x/kiosk, https://x/kiosk/ och https://x/kiosk/?lang=sv är samma sida).
+     */
+    public static boolean samePage(String a, String b) {
+        if (a == null || b == null) return false;
+        Uri ua = Uri.parse(a), ub = Uri.parse(b);
+        if (ua.getHost() == null || !ua.getHost().equalsIgnoreCase(ub.getHost())) return false;
+        return trimSlashes(ua.getPath()).equals(trimSlashes(ub.getPath()));
+    }
+
+    private static String trimSlashes(String path) {
+        String p = path == null ? "" : path;
+        while (p.endsWith("/")) p = p.substring(0, p.length() - 1);
+        return p;
+    }
+
     /** Startsidans värd (med underdomäner), t ex för JS-bryggan. */
     public static boolean sameSite(String url, String startUrl) {
         return new UrlPolicy(startUrl, null).allows(url);

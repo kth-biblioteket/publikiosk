@@ -74,10 +74,7 @@ public class MainActivity extends AppCompatActivity {
     private CheckBox splashscreenvideoCheckbox;
 
     private Handler inactivityHandler;
-    private Runnable inactivityRunnable;
 
-    private Handler inactivitywebHandler;
-    private Runnable inactivitywebRunnable;
 
     // Variabler för att spara settings i shared preferences
     private static final String PREFS_INACTIVITY_TIMEOUT = "inactivitytimeout";
@@ -123,7 +120,6 @@ public class MainActivity extends AppCompatActivity {
     private int clickCount = 0;
     private long lastClickTime = 0;
 
-    private boolean screentouched = false;
 
     private GestureDetector gestureDetector;
 
@@ -313,6 +309,13 @@ public class MainActivity extends AppCompatActivity {
                 super.onPageFinished(view, url);
                 Log.d("publikiosk", "onPageFinished: ");
 
+                // Första sidan som laddas efter att startadressen öppnats: dit den ledde
+                // (efter omdirigeringar), som då också räknas som startsidan
+                if (awaitingStart) {
+                    landedStartUrl = url;
+                    awaitingStart = false;
+                }
+
 
                 // Hantera att initiala sidan kan använda redirects
                 // Exempelvis wagnerguide.com/c/kth/kth går först till wagnerguide.com innan den slutligen hamnar på wagnerguide.com/c/kth/kth
@@ -382,8 +385,6 @@ public class MainActivity extends AppCompatActivity {
                     }, 100);
                     isUserNavigation = false;
                     isInitialLoading = true;
-                    // Starta timer för inaktivitet för extern websida
-                    startWebInactivityDetection();
                 }
                 if (url.equals(savedUrl)) {
                     if (pageLoaded == null || !pageLoaded) {
@@ -418,8 +419,6 @@ public class MainActivity extends AppCompatActivity {
                                 "}";
                         view.evaluateJavascript(js, null);
                     }, 100);
-                    // Starta timer för inaktivitet för huvudsidan
-                    startInactivityDetection();
                 }
                 lastUrl = url;
             }
@@ -535,11 +534,9 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Initialisera inaktivitethanterare för huvudsidan
+        // Tillbaka till startsidan när ingen använder enheten
         inactivityHandler = new Handler(Looper.getMainLooper());
-
-        // Initialisera inaktivitethanterare för externa URL:er
-        inactivitywebHandler = new Handler(Looper.getMainLooper());
+        inactivityHandler.postDelayed(idleCheck, IDLE_CHECK_INTERVAL_MS);
 
     }
 
@@ -588,6 +585,9 @@ public class MainActivity extends AppCompatActivity {
 
     /** Tillbaka till startsidan efter inaktivitet: ny besökare, ny session. */
     private void returnToStart() {
+        lastActivityAt = System.currentTimeMillis();
+        touchedSinceStart = false;
+        awaitingStart = true;
         clearSessionIfEnabled();
         myWeb.loadUrl(savedUrl);
         // clearHistory gäller först när nästa sida laddats
@@ -815,88 +815,62 @@ public class MainActivity extends AppCompatActivity {
         Toast.makeText(MainActivity.this, "Kioskläge avslutat", Toast.LENGTH_SHORT).show();
     }
 
-    //Timer för inaktivitet som startar när en huvudsidan  laddats i webview
-    private void startInactivityDetection() {
-        if (inactivityRunnable == null) {  // Kontrollera om en timer redan är igång
-            // När tiden går ut så stoppas timern för main //
-            // om splash är enablqat så avslutas main och splash startas
-            // Om splash inte är enablat så laddas huvudsidan om
-            inactivityRunnable = () -> {
-                // Hämta preferenser
-                SharedPreferences sharedPreferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-                boolean isSplashEnabled = sharedPreferences.getBoolean(PREF_SPLASHSCREEN, false);
+    // --- Tillbaka till startsidan när ingen använder enheten ---
 
-                if (isSplashEnabled) {
-                    // Stoppa timer för main
-                    inactivityHandler.removeCallbacks(inactivityRunnable);
-                    inactivityRunnable = null;
-                    Intent intent = new Intent(this, SplashActivity.class);
-                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-                    startActivity(intent);
-                    finish(); // Stänger den nuvarande aktiviteten
-                } else {
-                    resetInactivityDetection();
-                    if (screentouched) {
-                        returnToStart();  // Ladda om huvudsidan
+    private static final long IDLE_CHECK_INTERVAL_MS = 5_000;
+    /** Senaste tryck eller start av startsidan: tidsgränserna räknas härifrån */
+    private long lastActivityAt = System.currentTimeMillis();
+    /** Någon har rört skärmen sedan startsidan laddades (då laddas den om även om den visas) */
+    private boolean touchedSinceStart = false;
+    /** Dit startadressen faktiskt ledde (efter omdirigeringar), räknas också som startsidan */
+    private String landedStartUrl = null;
+    private boolean awaitingStart = true;
+
+    /**
+     * Startsidan, oavsett snedstreck på slutet, frågeparametrar och # (t ex ?lang=sv), och dit
+     * startadressen omdirigerade.
+     */
+    private boolean isStartPage(String url) {
+        return UrlPolicy.samePage(url, savedUrl) || (landedStartUrl != null && UrlPolicy.samePage(url, landedStartUrl));
+    }
+
+    /**
+     * Var femte sekund: har ingen rört skärmen under tidsgränsen går appen tillbaka till
+     * startsidan (med ny session). På en annan sida gäller tidsgränsen för extern webb; på
+     * startsidan den vanliga, och då bara om någon har använt den (eller startbilden visas).
+     * Oberoende av hur besökaren kom till sidan: länk, omdirigering, formulär eller navigering
+     * inne i en webbapp.
+     */
+    private final Runnable idleCheck = new Runnable() {
+        @Override
+        public void run() {
+            try {
+                long idle = System.currentTimeMillis() - lastActivityAt;
+                boolean onStart = isStartPage(myWeb.getUrl());
+                long limit = Long.parseLong(onStart ? savedInactivityTimeout : savedInactivityTimeoutWeb);
+                boolean busy = drawerLayout.isDrawerOpen(Gravity.LEFT) || isPinDialogOpen;
+                if (!busy && idle >= limit) {
+                    if (onStart && savedSplashscreen) {
+                        Intent intent = new Intent(MainActivity.this, SplashActivity.class);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(intent);
+                        finish();
+                        return;
                     }
-                    // Reset att användaren inte har rört skärmen
-                    screentouched = false;
+                    if (!onStart || touchedSinceStart) returnToStart();
                 }
-            };
-            // Stoppa timer för web om den är igång
-            if (inactivitywebRunnable != null) {
-                inactivitywebHandler.removeCallbacks(inactivitywebRunnable);
-                inactivitywebRunnable = null;
+            } catch (NumberFormatException e) {
+                Log.w("publikiosk", "Ogiltig tidsgräns för inaktivitet", e);
             }
-            // Starta timern
-            inactivityHandler.postDelayed(inactivityRunnable, Long.parseLong(savedInactivityTimeout));
+            inactivityHandler.postDelayed(this, IDLE_CHECK_INTERVAL_MS);
         }
-    }
-
-    private void resetInactivityDetection() {
-        if (inactivityRunnable != null) {
-            inactivityHandler.removeCallbacks(inactivityRunnable);
-            inactivityHandler.postDelayed(inactivityRunnable, Long.parseLong(savedInactivityTimeout));
-        }
-    }
-
-    //Timer för inaktivitet som startar när en extern sida laddats i webview
-    private void startWebInactivityDetection() {
-        if (inactivitywebRunnable == null) {  // Kontrollera om en timer redan är igång
-            // När tiden går ut så stoppas timern för web och statar om timern för main.
-            inactivitywebRunnable = () -> {
-                // Reset att användaren inte har rört skärmen
-                screentouched = false;
-                // Stoppa timer för web
-                inactivitywebHandler.removeCallbacks(inactivitywebRunnable);
-                inactivitywebRunnable = null;
-                //Reset timer för main
-                resetInactivityDetection();
-                if (!Objects.equals(myWeb.getUrl(), savedUrl)) {
-                    returnToStart();  // Ladda om huvudsidan
-                }
-            };
-            inactivityHandler.removeCallbacks(inactivityRunnable);
-            inactivityRunnable = null;
-            // Starta timern för externa URL:er
-            inactivitywebHandler.postDelayed(inactivitywebRunnable, Long.parseLong(savedInactivityTimeoutWeb));
-        }
-    }
-
-    private void resetWebInactivityDetection() {
-        if (inactivitywebRunnable != null) {
-            inactivitywebHandler.removeCallbacks(inactivitywebRunnable);
-            inactivitywebHandler.postDelayed(inactivitywebRunnable, Long.parseLong(savedInactivityTimeoutWeb));
-        }
-    }
+    };
 
     @Override
     public boolean dispatchTouchEvent(MotionEvent ev) {
-        screentouched = true;
         lastTouchAt = System.currentTimeMillis();
-        // Starta om timers
-        resetInactivityDetection();
-        resetWebInactivityDetection();
+        lastActivityAt = lastTouchAt;
+        touchedSinceStart = true;
         return super.dispatchTouchEvent(ev);
     }
 
@@ -1059,6 +1033,7 @@ public class MainActivity extends AppCompatActivity {
         if (pinStore.hasRecoveryCode()) pinBuilder.setNeutralButton("Glömt PIN?", (d, which) -> promptForRecoveryCode());
         AlertDialog dialog = pinBuilder.create();
         dialog.show();
+        closeWhenAbandoned(dialog);
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
             switch (pinStore.verify(pinInput.getText().toString())) {
                 case OK:
@@ -1096,6 +1071,7 @@ public class MainActivity extends AppCompatActivity {
                 .setOnDismissListener(d -> isPinDialogOpen = false)
                 .create();
         dialog.show();
+        closeWhenAbandoned(dialog);
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
             switch (pinStore.verifyRecovery(codeInput.getText().toString())) {
                 case OK:
@@ -1111,6 +1087,23 @@ public class MainActivity extends AppCompatActivity {
                     codeInput.setError("Fel kod, " + pinStore.attemptsLeft() + " försök kvar");
             }
         });
+    }
+
+    /**
+     * En PIN-ruta som lämnats öppen (t ex av en besökare som tryckt i hörnet) stängs efter 2
+     * minuter, annars skulle appen aldrig gå tillbaka till startsidan.
+     */
+    private void closeWhenAbandoned(AlertDialog dialog) {
+        long openedAt = System.currentTimeMillis();
+        commandHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (!dialog.isShowing()) return;
+                long now = System.currentTimeMillis();
+                if (now - openedAt >= IDLE_MS && now - lastTouchAt >= IDLE_MS) dialog.dismiss();
+                else commandHandler.postDelayed(this, IDLE_CHECK_MS);
+            }
+        }, IDLE_CHECK_MS);
     }
 
     private void showLocked(long ms) {
@@ -1147,6 +1140,8 @@ public class MainActivity extends AppCompatActivity {
         AlertDialog dialog = builder.create();
         dialog.setCanceledOnTouchOutside(!required);
         dialog.show();
+        // Måste en PIN väljas (ny installation) står rutan kvar; annars stängs den som de andra
+        if (!required) closeWhenAbandoned(dialog);
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
             String pin = first.getText().toString();
             if (!PinStore.isValidNewPin(pin)) {
@@ -1288,7 +1283,6 @@ public class MainActivity extends AppCompatActivity {
         background.shutdown();
         // Timrarna får inte köra mot en aktivitet som är borta (t ex efter recreate)
         if (inactivityHandler != null) inactivityHandler.removeCallbacksAndMessages(null);
-        if (inactivitywebHandler != null) inactivitywebHandler.removeCallbacksAndMessages(null);
         SharedPreferences sharedPreferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putBoolean(PREF_FULLSCREEN, fullscreenCheckbox.isChecked());
