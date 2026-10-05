@@ -492,9 +492,18 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * Blockera navigering som inte är tillåten (andra värdar, andra scheman än https).
+     * http till en tillåten värd öppnas med https i stället.
      * Returnerar true om sidan inte ska laddas.
      */
     private boolean blockNavigation(String url) {
+        // http-länk till en tillåten webbplats: öppna https-adressen i stället
+        String https = urlPolicy != null ? urlPolicy.httpsUpgrade(url) : null;
+        if (https != null) {
+            Log.d("publikiosk", "Öppnar med https: " + https);
+            isUserNavigation = true;
+            myWeb.loadUrl(https);
+            return true;
+        }
         if (urlPolicy != null && !urlPolicy.allows(url)) {
             Log.w("publikiosk", "Blockerad navigering: " + url);
             Toast.makeText(this, "Sidan kan inte öppnas här", Toast.LENGTH_SHORT).show();

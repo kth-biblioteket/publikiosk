@@ -39,6 +39,18 @@ public class UrlPolicy {
         return false;
     }
 
+    /**
+     * En http-länk till en tillåten webbplats (t ex http://apps.lib.kth.se/…) som https-adress,
+     * eller null. Sidan hämtas då krypterat i stället för att blockeras.
+     */
+    public String httpsUpgrade(String url) {
+        if (url == null) return null;
+        Uri uri = Uri.parse(url);
+        if (!"http".equalsIgnoreCase(uri.getScheme())) return null;
+        String https = uri.buildUpon().scheme("https").build().toString();
+        return allows(https) ? https : null;
+    }
+
     /** Startsidans värd (med underdomäner), t ex för JS-bryggan. */
     public static boolean sameSite(String url, String startUrl) {
         return new UrlPolicy(startUrl, null).allows(url);
