@@ -621,6 +621,19 @@ public class MainActivity extends AppCompatActivity {
             });
         });
         findViewById(R.id.fetch_button).setOnClickListener(v -> fetchConfig(true));
+        // T ex för att flytta enheten till en annan publicomtools: inställningarna står kvar och kan ändras i menyn
+        findViewById(R.id.disconnect_button).setOnClickListener(v -> new AlertDialog.Builder(this)
+                .setTitle("Koppla från publicomtools?")
+                .setMessage("Enheten slutar hämta inställningar och skicka status. Den behåller de senaste inställningarna. "
+                        + "För att ansluta igen behövs en ny kod från publicomtools.")
+                .setPositiveButton("Koppla från", (d, w) -> {
+                    statusReporter.stop();
+                    publicomtools.forget();
+                    ManagedConfig.release(this);
+                    updatePublicomtoolsUi();
+                })
+                .setNegativeButton("Avbryt", null)
+                .show());
         updatePublicomtoolsUi();
     }
 
@@ -632,6 +645,7 @@ public class MainActivity extends AppCompatActivity {
                 : "Inte ansluten. Inställningarna görs här i menyn.");
         findViewById(R.id.enroll_form).setVisibility(enrolled ? View.GONE : View.VISIBLE);
         findViewById(R.id.fetch_button).setVisibility(enrolled ? View.VISIBLE : View.GONE);
+        findViewById(R.id.disconnect_button).setVisibility(enrolled ? View.VISIBLE : View.GONE);
 
         // Styrs enheten från publicomtools är inställningarna skrivskyddade här
         boolean managed = enrolled && ManagedConfig.isManaged(this);
