@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Rect;
@@ -27,8 +28,12 @@ import android.webkit.JsResult;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
+import android.webkit.WebStorage;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.WebViewDatabase;
+import android.text.InputType;
+import android.widget.LinearLayout;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -58,7 +63,8 @@ public class MainActivity extends AppCompatActivity {
     private DrawerLayout drawerLayout;
     private View triggerArea;
     private EditText urlInput;
-    private EditText pincodeInput;
+    private EditText allowedHostsInput;
+    private CheckBox clearSessionCheckbox;
     private EditText initialscaleInput;
     private EditText inactivitytimeoutInput;
     private EditText inactivitytimeoutwebInput;
@@ -77,7 +83,8 @@ public class MainActivity extends AppCompatActivity {
     private static final String PREFS_INACTIVITY_TIMEOUT = "inactivitytimeout";
     private static final String PREFS_INACTIVITY_TIMEOUT_WEB = "inactivitytimeoutweb";
     private static final String PREFS_NAME = "MyPrefs";
-    private static final String PREF_PIN = "pin";
+    private static final String PREF_ALLOWED_HOSTS = "allowedhosts";
+    private static final String PREF_CLEAR_SESSION = "clearsession";
     private static final String PREF_INITIAL_SCALE = "initialscale";
     private static final String PREF_ORIENTATION = "orientation";
     private static final String PREF_FULLSCREEN = "fullscreen";
@@ -85,7 +92,14 @@ public class MainActivity extends AppCompatActivity {
     private static final String PREF_SPLASHSCREENVIDEO = "splashscreenvideo";
     private static final String PREF_URL = "url";
 
-    private String savedPincode;
+    private String savedAllowedHosts;
+    private boolean savedClearSession;
+    private UrlPolicy urlPolicy;
+    private PinStore pinStore;
+    private KioskPolicy kioskPolicy;
+
+    /** JS-bryggan "Android" svarar bara när sidan kommer från startsidans värd (sätts i onPageStarted). */
+    static volatile boolean bridgeAllowed = false;
     private int savedOrientation;
     private String savedInitialScale;
     private boolean savedFullscreen;
@@ -115,19 +129,19 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        //Möjliggör debug i chrome
-        WebView.setWebContentsDebuggingEnabled(true);
+        // Felsökning av WebView (chrome://inspect) bara i debug-byggen: på en publik enhet skulle
+        // den annars ge åtkomst till sidorna och deras cookies via USB
+        WebView.setWebContentsDebuggingEnabled((getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0);
 
-        DevicePolicyManager devicePolicyManager = (DevicePolicyManager) getSystemService(Context.DEVICE_POLICY_SERVICE);
-        ComponentName componentName = new ComponentName(this, MyDeviceAdminReceiver.class);
-
+        pinStore = new PinStore(this);
+        kioskPolicy = new KioskPolicy(this);
 
         setContentView(R.layout.activity_main);
 
         // Är appen "device owner?"
-        if (devicePolicyManager.isDeviceOwnerApp(getPackageName())) {
-            // Låt appen sätta locktask utan att en användardialg visas
-            devicePolicyManager.setLockTaskPackages(componentName, new String[]{getPackageName()});
+        if (kioskPolicy.isDeviceOwner()) {
+            // Locktask utan användardialog, och resten av låsningarna (statusfält, hemknapp, begränsningar)
+            kioskPolicy.apply();
 
             AutoUpdate updateManager = new AutoUpdate(this);
             updateManager.checkForUpdate();
@@ -157,7 +171,10 @@ public class MainActivity extends AppCompatActivity {
         fullscreenCheckbox = findViewById(R.id.fullscreen_checkbox);
         splashscreenCheckbox = findViewById(R.id.splashscreen_checkbox);
         splashscreenvideoCheckbox = findViewById(R.id.splashscreenvideo_checkbox);
-        pincodeInput = findViewById(R.id.pincode_input);
+        allowedHostsInput = findViewById(R.id.allowedhosts_input);
+        clearSessionCheckbox = findViewById(R.id.clearsession_checkbox);
+        Button changePinButton = findViewById(R.id.changePinButton);
+        changePinButton.setOnClickListener(v -> promptForNewPin(false));
         Button saveButton = findViewById(R.id.save_button);
 
         myMain.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
@@ -200,7 +217,14 @@ public class MainActivity extends AppCompatActivity {
 
 
         myWeb.getSettings().setDomStorageEnabled(true);
-        myWeb.getSettings().setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        // Bara https, inga lokala filer, inga popup-fönster (target=_blank öppnas i samma vy och
+        // går då genom shouldOverrideUrlLoading), ingen plats och inga sparade formulär
+        myWeb.getSettings().setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+        myWeb.getSettings().setAllowFileAccess(false);
+        myWeb.getSettings().setAllowContentAccess(false);
+        myWeb.getSettings().setSupportMultipleWindows(false);
+        myWeb.getSettings().setGeolocationEnabled(false);
+        myWeb.getSettings().setSaveFormData(false);
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(myWeb, true);
         myWeb.addJavascriptInterface(new WebAppInterface(this), "Android");
@@ -214,9 +238,32 @@ public class MainActivity extends AppCompatActivity {
         });
         myWeb.setWebViewClient(new WebViewClient() {
             //Kontrollera om användaren klickat på en navigation(länk/knapp)
+            @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                isUserNavigation = true;
-                return false;
+                return blockNavigation(request.getUrl().toString());
+            }
+
+            // Android 6 anropar bara den här varianten
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                return blockNavigation(url);
+            }
+
+            // WebViews renderingsprocess kraschade eller stängdes av systemet. Utan det här dör hela
+            // appen och enheten lämnar kioskläget; nu startas aktiviteten om i samma låsta läge.
+            @Override
+            public boolean onRenderProcessGone(WebView view, android.webkit.RenderProcessGoneDetail detail) {
+                Log.e("publikiosk", "WebView-processen försvann (krasch: " + detail.didCrash() + "), startar om");
+                if (view.getParent() != null) ((android.view.ViewGroup) view.getParent()).removeView(view);
+                view.destroy();
+                recreate();
+                return true;
+            }
+
+            @Override
+            public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
+                super.onPageStarted(view, url, favicon);
+                bridgeAllowed = UrlPolicy.sameSite(url, savedUrl);
             }
 
             // Skapa javascript på laddad websida(lägger till en knapp med länk tillbaks till huvudsida)
@@ -283,7 +330,7 @@ public class MainActivity extends AppCompatActivity {
                                 "homeButton.style.height = '100px';" +
                                 "homeButton.style.backgroundColor = '#d02f80';" +
                                 "homeButton.onclick = function() {" +
-                                        "window.location.href = '" + savedUrl + "';" +
+                                        "window.location.href = " + JSONObject.quote(savedUrl) + ";" +
                                 "};" +
                                 "homeButton.innerHTML = '<i class=\"fas fa-location-dot\" style=\"color:#ffffff26;font-size: 70px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);\"></i><span style=\"font-size: 20px;font-weight: 700\">' + homeText +'</span>';"  +
                                 "nav.appendChild(homeButton);" +
@@ -353,7 +400,8 @@ public class MainActivity extends AppCompatActivity {
         // Ladda settings
         loadSettings();
 
-        // Ladda url i webview
+        // Ladda url i webview, utan något kvar från förra sessionen
+        clearSessionIfEnabled();
         myWeb.loadUrl(savedUrl);
         isUserNavigation = false;
         isInitialLoading = true;
@@ -363,11 +411,26 @@ public class MainActivity extends AppCompatActivity {
 
         //Hantera saveknapp i settings
         saveButton.setOnClickListener(v -> {
+            savedUrl = urlInput.getText().toString().trim();
+            savedAllowedHosts = allowedHostsInput.getText().toString().trim();
+            savedInitialScale = initialscaleInput.getText().toString().trim();
+            savedInactivityTimeout = inactivitytimeoutInput.getText().toString().trim();
+            savedInactivityTimeoutWeb = inactivitytimeoutwebInput.getText().toString().trim();
+            savedClearSession = clearSessionCheckbox.isChecked();
+            if (UrlPolicy.host(savedUrl) == null || !savedUrl.startsWith("https://")) {
+                Toast.makeText(this, "Startsidan måste börja med https://", Toast.LENGTH_LONG).show();
+                return;
+            }
             saveSettings();
             applySettings();
             drawerLayout.closeDrawer(Gravity.LEFT);
             myWeb.loadUrl(savedUrl);
         });
+
+        // Ingen PIN än (ny installation): den som installerar väljer en innan något annat
+        if (!pinStore.isSet()) {
+            promptForNewPin(true);
+        }
 
         /*
           Lyssna på ändringar i settings dialog
@@ -400,12 +463,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        pincodeInput.setOnFocusChangeListener((v, hasFocus) -> {
-            if (!hasFocus) {
-                savedPincode = pincodeInput.getText().toString().trim();
-            }
-        });
-
         initialscaleInput.setOnFocusChangeListener((v, hasFocus) -> {
             if (!hasFocus) {
                 savedInitialScale = initialscaleInput.getText().toString().trim();
@@ -432,8 +489,51 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    /**
+     * Blockera navigering som inte är tillåten (andra värdar, andra scheman än https).
+     * Returnerar true om sidan inte ska laddas.
+     */
+    private boolean blockNavigation(String url) {
+        if (urlPolicy != null && !urlPolicy.allows(url)) {
+            Log.w("publikiosk", "Blockerad navigering: " + url);
+            Toast.makeText(this, "Sidan kan inte öppnas här", Toast.LENGTH_SHORT).show();
+            return true;
+        }
+        isUserNavigation = true;
+        return false;
+    }
+
+    /**
+     * Rensa allt som en besökare kan ha lämnat efter sig: cookies (inloggningar), lagrad data,
+     * cache, historik, formulärdata och sparade HTTP-inloggningar.
+     */
+    private void clearSession() {
+        CookieManager cookies = CookieManager.getInstance();
+        cookies.removeAllCookies(null);
+        cookies.flush();
+        WebStorage.getInstance().deleteAllData();
+        myWeb.clearCache(true);
+        myWeb.clearHistory();
+        myWeb.clearFormData();
+        WebViewDatabase.getInstance(this).clearHttpAuthUsernamePassword();
+        Log.d("publikiosk", "Session rensad");
+    }
+
+    private void clearSessionIfEnabled() {
+        if (savedClearSession) clearSession();
+    }
+
+    /** Tillbaka till startsidan efter inaktivitet: ny besökare, ny session. */
+    private void returnToStart() {
+        clearSessionIfEnabled();
+        myWeb.loadUrl(savedUrl);
+        // clearHistory gäller först när nästa sida laddats
+        myWeb.postDelayed(() -> myWeb.clearHistory(), 1000);
+    }
+
     // Avsluta kioskläge
     private void quitKiosk() {
+        kioskPolicy.release();
         stopLockTask();
         Toast.makeText(MainActivity.this, "Kioskläge avslutat", Toast.LENGTH_SHORT).show();
     }
@@ -460,7 +560,7 @@ public class MainActivity extends AppCompatActivity {
                 } else {
                     resetInactivityDetection();
                     if (screentouched) {
-                        myWeb.loadUrl(savedUrl);  // Ladda om huvudsidan
+                        returnToStart();  // Ladda om huvudsidan
                     }
                     // Reset att användaren inte har rört skärmen
                     screentouched = false;
@@ -496,7 +596,7 @@ public class MainActivity extends AppCompatActivity {
                 //Reset timer för main
                 resetInactivityDetection();
                 if (!Objects.equals(myWeb.getUrl(), savedUrl)) {
-                    myWeb.loadUrl(savedUrl);  // Ladda om huvudsidan
+                    returnToStart();  // Ladda om huvudsidan
                 }
             };
             inactivityHandler.removeCallbacks(inactivityRunnable);
@@ -539,7 +639,7 @@ public class MainActivity extends AppCompatActivity {
             if (clickCount >= CLICK_THRESHOLD) {
                 if (isPinVerified) {
                     drawerLayout.openDrawer(Gravity.LEFT);
-                } else {
+                } else if (!isPinDialogOpen) {
                     promptForPin();
                 }
                 clickCount = 0;
@@ -596,7 +696,8 @@ public class MainActivity extends AppCompatActivity {
     private void loadSettings() {
         SharedPreferences sharedPreferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
 
-        savedPincode = sharedPreferences.getString(PREF_PIN, "1234");
+        savedAllowedHosts = sharedPreferences.getString(PREF_ALLOWED_HOSTS, "");
+        savedClearSession = sharedPreferences.getBoolean(PREF_CLEAR_SESSION, true);
         savedInitialScale = sharedPreferences.getString(PREF_INITIAL_SCALE, "100");
         savedInactivityTimeout = sharedPreferences.getString(PREFS_INACTIVITY_TIMEOUT, "60000");
         savedInactivityTimeoutWeb = sharedPreferences.getString(PREFS_INACTIVITY_TIMEOUT_WEB, "30000");
@@ -611,9 +712,12 @@ public class MainActivity extends AppCompatActivity {
         splashscreenCheckbox.setChecked(savedSplashscreen);
         splashscreenvideoCheckbox.setChecked(savedSplashscreenvideo);
         urlInput.setText(savedUrl);
-        pincodeInput.setText(savedPincode);
+        allowedHostsInput.setText(savedAllowedHosts);
+        clearSessionCheckbox.setChecked(savedClearSession);
         initialscaleInput.setText(savedInitialScale);
         inactivitytimeoutInput.setText(savedInactivityTimeout);
+        inactivitytimeoutwebInput.setText(savedInactivityTimeoutWeb);
+        urlPolicy = new UrlPolicy(savedUrl, savedAllowedHosts);
 
     }
 
@@ -621,7 +725,8 @@ public class MainActivity extends AppCompatActivity {
         SharedPreferences sharedPreferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPreferences.edit();
 
-        editor.putString(PREF_PIN, savedPincode);
+        editor.putString(PREF_ALLOWED_HOSTS, savedAllowedHosts);
+        editor.putBoolean(PREF_CLEAR_SESSION, savedClearSession);
         editor.putString(PREF_INITIAL_SCALE, savedInitialScale);
         editor.putString(PREFS_INACTIVITY_TIMEOUT, savedInactivityTimeout);
         editor.putString(PREFS_INACTIVITY_TIMEOUT_WEB, savedInactivityTimeoutWeb);
@@ -634,6 +739,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void applySettings() {
+        urlPolicy = new UrlPolicy(savedUrl, savedAllowedHosts);
         setInitialScale(savedInitialScale);
         setOrientation(savedOrientation);
         applyFullscreen(savedFullscreen);
@@ -648,48 +754,108 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Hantera dialog för pin
+     * Hantera dialog för pin. Efter för många fel spärras menyn en stund (PinStore), men
+     * spärren är alltid tillfällig och kiosken fungerar som vanligt under tiden.
      */
     private void promptForPin() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Enter PIN");
-
-        final EditText pinInput = new EditText(this);
-        pinInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
-        builder.setView(pinInput);
-
-        builder.setPositiveButton("Verify", null);
-        builder.setNegativeButton("Cancel", (dialog, which) -> {
-            isPinDialogOpen = false;
-            dialog.cancel();
-        });
-
-        builder.setOnDismissListener(dialog -> {
-            isPinDialogOpen = false;
-        });
-
-        AlertDialog dialog = builder.create();
-
+        long locked = pinStore.lockedForMs();
+        if (locked > 0) {
+            showLocked(locked);
+            return;
+        }
+        isPinDialogOpen = true;
+        final EditText pinInput = pinField("PIN");
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Ange PIN")
+                .setView(pinInput)
+                .setPositiveButton("OK", null)
+                .setNegativeButton("Avbryt", (d, which) -> d.cancel())
+                .setOnDismissListener(d -> isPinDialogOpen = false)
+                .create();
         dialog.show();
-
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
-            String enteredPin = pinInput.getText().toString();
-            if (verifyPin(enteredPin)) {
-                dialog.dismiss();
+            switch (pinStore.verify(pinInput.getText().toString())) {
+                case OK:
+                    dialog.dismiss();
+                    if (pinStore.mustChange()) {
+                        // Äldre PIN (1234 eller för kort): byt innan menyn öppnas
+                        promptForNewPin(true);
+                    } else {
+                        openSettings();
+                    }
+                    break;
+                case LOCKED:
+                    dialog.dismiss();
+                    showLocked(pinStore.lockedForMs());
+                    break;
+                default:
+                    pinInput.setText("");
+                    pinInput.setError("Fel PIN, " + pinStore.attemptsLeft() + " försök kvar");
             }
         });
     }
 
-    private boolean verifyPin(String enteredPin) {
-        if (enteredPin.equals(savedPincode)) {
-            Toast.makeText(this, "PIN Verified!", Toast.LENGTH_SHORT).show();
-            drawerLayout.openDrawer(Gravity.LEFT);
-            isPinVerified = true;
-            return true;
-        } else {
-            Toast.makeText(this, "Incorrect PIN!", Toast.LENGTH_SHORT).show();
-            return false;
-        }
+    private void showLocked(long ms) {
+        long minutes = Math.max(1, (ms + 59_999) / 60_000);
+        new AlertDialog.Builder(this)
+                .setTitle("Menyn är spärrad")
+                .setMessage("För många fel PIN. Försök igen om " + minutes + (minutes == 1 ? " minut." : " minuter."))
+                .setPositiveButton("OK", null)
+                .show();
+    }
+
+    /**
+     * Välj en ny PIN (minst PinStore.MIN_LENGTH siffror, två gånger). Med required går dialogen
+     * inte att avbryta: ny installation, eller en äldre PIN som måste bytas.
+     */
+    private void promptForNewPin(boolean required) {
+        isPinDialogOpen = true;
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        int pad = (int) (16 * getResources().getDisplayMetrics().density);
+        layout.setPadding(pad, 0, pad, 0);
+        final EditText first = pinField("Ny PIN, minst " + PinStore.MIN_LENGTH + " siffror");
+        final EditText second = pinField("Samma PIN igen");
+        layout.addView(first);
+        layout.addView(second);
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this)
+                .setTitle(required ? "Välj PIN för inställningarna" : "Byt PIN")
+                .setView(layout)
+                .setPositiveButton("Spara", null)
+                .setCancelable(!required)
+                .setOnDismissListener(d -> isPinDialogOpen = false);
+        if (!required) builder.setNegativeButton("Avbryt", (d, which) -> d.cancel());
+        AlertDialog dialog = builder.create();
+        dialog.setCanceledOnTouchOutside(!required);
+        dialog.show();
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String pin = first.getText().toString();
+            if (!PinStore.isValidNewPin(pin)) {
+                first.setError("Minst " + PinStore.MIN_LENGTH + " siffror, inte samma siffra överallt");
+                return;
+            }
+            if (!pin.equals(second.getText().toString())) {
+                second.setError("PIN:arna är inte lika");
+                return;
+            }
+            pinStore.set(pin);
+            dialog.dismiss();
+            Toast.makeText(this, "PIN sparad", Toast.LENGTH_SHORT).show();
+            if (required && pinStore.isSet()) openSettings();
+        });
+    }
+
+    private EditText pinField(String hint) {
+        EditText field = new EditText(this);
+        field.setHint(hint);
+        field.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+        return field;
+    }
+
+    private void openSettings() {
+        isPinVerified = true;
+        drawerLayout.openDrawer(Gravity.LEFT);
     }
 
     private void setInitialScale(String scale) {
@@ -740,9 +906,14 @@ public class MainActivity extends AppCompatActivity {
             this.context = context;
         }
 
+        // Loggen får inte växa obegränsat: en sida kan anropa bryggan hur ofta som helst
+        private static final long MAX_LOG_BYTES = 1024 * 1024;
+
         @JavascriptInterface
         // Anropas av tillagda javascript på laddade websidor i webview
         public void logActivity(String data) {
+            // Bara startsidans värd får använda bryggan
+            if (!bridgeAllowed || data == null || data.length() > 4096) return;
             try {
                 JSONObject json = new JSONObject(data);
                 String tag = json.getString("tag");
@@ -757,8 +928,8 @@ public class MainActivity extends AppCompatActivity {
 
         // Metod för att spara loggen till en fil
         private void saveLogToFile(String log) {
-            // Hämta katalogen där loggen ska sparas
-            File directory = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS);
+            // Appens interna katalog: den externa går att läsa för andra appar och via USB
+            File directory = context.getFilesDir();
 
             // Kontrollera om katalogen finns, skapa den om inte
             if (directory != null && !directory.exists()) {
@@ -767,6 +938,9 @@ public class MainActivity extends AppCompatActivity {
 
             // Skapa filen i katalogen
             File logFile = new File(directory, LOG_FILE_NAME);
+            if (logFile.length() > MAX_LOG_BYTES) {
+                logFile.delete();
+            }
 
             try {
                 // Använd FileWriter för att öppna filen i append-läge
@@ -791,6 +965,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        // Timrarna får inte köra mot en aktivitet som är borta (t ex efter recreate)
+        if (inactivityHandler != null) inactivityHandler.removeCallbacksAndMessages(null);
+        if (inactivitywebHandler != null) inactivitywebHandler.removeCallbacksAndMessages(null);
         SharedPreferences sharedPreferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putBoolean(PREF_FULLSCREEN, fullscreenCheckbox.isChecked());

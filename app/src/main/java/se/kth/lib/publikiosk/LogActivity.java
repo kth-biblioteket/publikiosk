@@ -3,7 +3,6 @@ package se.kth.lib.publikiosk;
 import android.os.Bundle;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
-import android.os.Environment;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -31,10 +30,8 @@ public class LogActivity extends AppCompatActivity {
 
     // Metod för att läsa loggen från filen
     private String readLogFromFile() {
-        File directory = getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS);
-        if (directory == null) {
-            return null;
-        }
+        // Samma interna katalog som MainActivity.WebAppInterface skriver till
+        File directory = getFilesDir();
 
         File logFile = new File(directory, "webview_logs.txt");
 

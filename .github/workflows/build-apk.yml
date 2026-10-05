@@ -1,4 +1,6 @@
-## Bygger APK som appen hämtar för automatisk uopdatering.
+## Bygger APK som appen hämtar för automatisk uppdatering.
+## Release (tagg + uppladdning) bara vid push till main: alla enheter installerar den.
+## En pull request bygger bara, så att den kan granskas utan att något rullas ut.
 name: Build and Release APK
 
 on:
@@ -24,6 +26,7 @@ jobs:
           distribution: 'temurin'
 
       - name: Decode keystore from secret
+        if: github.event_name == 'push'
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/release.keystore
 
       - name: Build the APK
@@ -31,6 +34,7 @@ jobs:
         run: ./gradlew assembleDebug
 
       - name: Build release APK
+        if: github.event_name == 'push'
         run: ./gradlew assembleRelease
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -38,12 +42,14 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Show APK path
+        if: github.event_name == 'push'
         run: ls -l app/build/outputs/apk/release/
 
       - name: Debug APK File
         run: ls -lR app/build/outputs/apk/
 
       - name: Extract version from build.gradle
+        if: github.event_name == 'push'
         id: get_version
         run: |
           # Extract versionCode and versionName from build.gradle
@@ -54,20 +60,16 @@ jobs:
           echo "Tagging release as $VERSION_NAME"
 
       - name: Create Git tag
+        if: github.event_name == 'push'
         run: |
           # Create a tag using versionName (e.g., v1.0.0)
           git tag v${{ env.VERSION_NAME }}
           git push origin v${{ env.VERSION_NAME }}  # Push the tag to GitHub
 
+      # Bara release-APK:n publiceras. Debug-bygget har WebView-felsökning och http mot
+      # emulatorn påslaget och ska aldrig finnas i en publik release.
       - name: Upload APK to GitHub releases
-        uses: softprops/action-gh-release@v1
-        with:
-          files: app/build/outputs/apk/debug/app-debug.apk  # Path to your built APK
-          tag_name: v${{ env.VERSION_NAME }}  # Use the versionName from the gradle file as the tag
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Use GitHub token for creating the release
-
-      - name: Upload APK to GitHub releases
+        if: github.event_name == 'push'
         uses: softprops/action-gh-release@v1
         with:
           files: app/build/outputs/apk/release/app-release.apk

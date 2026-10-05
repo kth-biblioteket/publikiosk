@@ -83,7 +83,7 @@
                 android:layout_height="wrap_content"
                 android:autofillHints=""
                 android:hint="Enter Timeout Value"
-                android:inputType="textUri"
+                android:inputType="number"
                 android:text="10000"
                 android:layout_marginBottom="10dp"/>
 
@@ -100,7 +100,7 @@
                 android:layout_height="wrap_content"
                 android:autofillHints=""
                 android:hint="Enter Timeout Value"
-                android:inputType="textUri"
+                android:inputType="number"
                 android:text="10000"
                 android:layout_marginBottom="10dp"/>
 
@@ -137,6 +137,29 @@
                 android:layout_marginBottom="10dp"/>
 
             <TextView
+                android:id="@+id/label_allowedhosts"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Tillåtna webbplatser (utöver startsidan)"
+                android:textSize="16sp"
+                android:layout_marginBottom="0dp"/>
+            <EditText
+                android:id="@+id/allowedhosts_input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:autofillHints=""
+                android:hint="t ex kth.se, www.kth.se/biblioteket"
+                android:inputType="textUri"
+                android:layout_marginBottom="10dp"/>
+
+            <CheckBox
+                android:id="@+id/clearsession_checkbox"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Rensa inloggningar och cookies vid inaktivitet"
+                android:layout_marginBottom="20dp"/>
+
+            <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Select Orientation:" />
@@ -168,28 +191,19 @@
                 android:text="Enable Splash Screen Video"
                 android:layout_marginBottom="20dp"/>
 
-            <TextView
-                android:id="@+id/label_pincode"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/pin_code_label"
-                android:textSize="16sp"
-                android:layout_marginBottom="0dp"/>
-            <EditText
-                android:id="@+id/pincode_input"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:autofillHints=""
-                android:hint="@string/pin_code_label"
-                android:inputType="textUri"
-                android:layout_marginBottom="10dp"/>
-
             <!-- Save Button -->
             <Button
                 android:id="@+id/save_button"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Spara" />
+
+            <Button
+                android:id="@+id/changePinButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Byt PIN"
+                android:layout_gravity="center" />
 
             <Button
                 android:id="@+id/showLogButton"

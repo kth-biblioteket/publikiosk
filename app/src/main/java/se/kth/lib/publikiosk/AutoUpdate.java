@@ -1,6 +1,5 @@
 package se.kth.lib.publikiosk;
 
-import android.app.DownloadManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
@@ -8,7 +7,7 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageInstaller;
 import android.net.Uri;
 import android.os.AsyncTask;
-import android.os.Environment;
+import android.os.Build;
 import android.util.Log;
 
 import org.json.JSONArray;
@@ -17,11 +16,13 @@ import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.security.MessageDigest;
 
 public class AutoUpdate {
 
@@ -102,6 +103,7 @@ public class AutoUpdate {
                 JSONArray assets = release.getJSONArray("assets");
 
                 String downloadUrl = null;
+                String digest = null;
 
                 for (int i = 0; i < assets.length(); i++) {
 
@@ -113,6 +115,8 @@ public class AutoUpdate {
 
                         downloadUrl =
                                 asset.getString("browser_download_url");
+                        // "sha256:<hex>", finns för assets som laddats upp efter juni 2025
+                        digest = asset.optString("digest", null);
 
                         break;
                     }
@@ -126,7 +130,7 @@ public class AutoUpdate {
                 Log.d(TAG,
                         "Downloading: " + downloadUrl);
 
-                downloadAndInstall(downloadUrl);
+                downloadAndInstall(downloadUrl, digest);
 
             } catch (Exception e) {
 
@@ -198,87 +202,77 @@ public class AutoUpdate {
         }
     }
 
-    private void downloadAndInstall(
-            String downloadUrl) {
+    /**
+     * Ladda ner APK:n till appens interna cache (inte den externa katalogen, där andra appar
+     * kan byta ut filen), kontrollera SHA-256 mot GitHubs digest när den finns, och installera
+     * bara om paketnamnet stämmer och versionen är högre än den som körs.
+     */
+    private void downloadAndInstall(String downloadUrl, String digest) {
 
         updateInProgress = true;
 
-        DownloadManager.Request request =
-                new DownloadManager.Request(
-                        Uri.parse(downloadUrl));
-
-        request.setTitle(
-                "Downloading update");
-
-        request.setDestinationInExternalFilesDir(
-                context,
-                Environment.DIRECTORY_DOWNLOADS,
-                "update.apk");
-
-        DownloadManager manager =
-                (DownloadManager)
-                        context.getSystemService(
-                                Context.DOWNLOAD_SERVICE);
-
-        long downloadId =
-                manager.enqueue(request);
-
         new Thread(() -> {
+            File dir = new File(context.getCacheDir(), "update");
+            File apk = new File(dir, "update.apk");
+            try {
+                if (!downloadUrl.startsWith("https://")) throw new IllegalStateException("Inte https: " + downloadUrl);
+                dir.mkdirs();
+                apk.delete();
 
-            boolean downloading = true;
-
-            while (downloading) {
-
-                DownloadManager.Query query =
-                        new DownloadManager.Query();
-
-                query.setFilterById(downloadId);
-
-                var cursor =
-                        manager.query(query);
-
-                if (cursor.moveToFirst()) {
-
-                    int status =
-                            cursor.getInt(
-                                    cursor.getColumnIndexOrThrow(
-                                            DownloadManager.COLUMN_STATUS));
-
-                    if (status ==
-                            DownloadManager.STATUS_SUCCESSFUL) {
-
-                        downloading = false;
-
-                        String uri =
-                                cursor.getString(
-                                        cursor.getColumnIndexOrThrow(
-                                                DownloadManager.COLUMN_LOCAL_URI));
-
-                        installApk(
-                                Uri.parse(uri));
-
+                MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
+                HttpURLConnection connection = (HttpURLConnection) new URL(downloadUrl).openConnection();
+                connection.setConnectTimeout(30_000);
+                connection.setReadTimeout(60_000);
+                try (InputStream in = connection.getInputStream();
+                     OutputStream out = new FileOutputStream(apk)) {
+                    byte[] buffer = new byte[65536];
+                    int read;
+                    while ((read = in.read(buffer)) != -1) {
+                        out.write(buffer, 0, read);
+                        sha256.update(buffer, 0, read);
                     }
-
-                    if (status ==
-                            DownloadManager.STATUS_FAILED) {
-
-                        downloading = false;
-
-                        updateInProgress = false;
-
-                        Log.e(TAG,
-                                "Download failed");
-                    }
+                } finally {
+                    connection.disconnect();
                 }
 
-                cursor.close();
-
-                try {
-                    Thread.sleep(1000);
-                } catch (Exception ignored) {
+                String actual = toHex(sha256.digest());
+                if (digest != null && digest.startsWith("sha256:")) {
+                    if (!digest.substring(7).equalsIgnoreCase(actual)) {
+                        throw new SecurityException("SHA-256 stämmer inte: " + actual + " (väntat " + digest + ")");
+                    }
+                    Log.d(TAG, "SHA-256 kontrollerad");
+                } else {
+                    Log.w(TAG, "Releasen anger ingen digest, kontrollerar bara signatur och version");
                 }
+
+                PackageInfo archive = context.getPackageManager().getPackageArchiveInfo(apk.getPath(), 0);
+                PackageInfo current = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
+                if (archive == null || !context.getPackageName().equals(archive.packageName)) {
+                    throw new SecurityException("Fel paket i APK:n");
+                }
+                if (versionCode(archive) <= versionCode(current)) {
+                    throw new SecurityException("APK:n är inte nyare (" + archive.versionName + ")");
+                }
+
+                installApk(Uri.fromFile(apk));
+
+            } catch (Exception e) {
+                updateInProgress = false;
+                apk.delete();
+                Log.e(TAG, "Download failed", e);
             }
         }).start();
+    }
+
+    @SuppressWarnings("deprecation")
+    private static long versionCode(PackageInfo info) {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.P ? info.getLongVersionCode() : info.versionCode;
+    }
+
+    private static String toHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) sb.append(String.format("%02x", b));
+        return sb.toString();
     }
 
     private void installApk(Uri apkUri) {
@@ -295,6 +289,9 @@ public class AutoUpdate {
             PackageInstaller.SessionParams params =
                     new PackageInstaller.SessionParams(
                             PackageInstaller.SessionParams.MODE_FULL_INSTALL);
+
+            // Sessionen får bara installera den här appen
+            params.setAppPackageName(context.getPackageName());
 
             int sessionId =
                     installer.createSession(params);
@@ -329,6 +326,9 @@ public class AutoUpdate {
 
                 session.fsync(out);
             }
+
+            // Innehållet ligger nu i sessionen
+            apkFile.delete();
 
             Intent intent =
                     new Intent(
