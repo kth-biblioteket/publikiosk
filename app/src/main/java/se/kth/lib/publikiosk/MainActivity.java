@@ -123,6 +123,8 @@ public class MainActivity extends AppCompatActivity {
     private GestureDetector gestureDetector;
 
     boolean isUserNavigation = false;
+    private String lastHttpsUpgrade;
+    private long lastHttpsUpgradeAt;
     boolean isInitialLoading = true;
     String lastUrl = "";
 
@@ -264,6 +266,19 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
                 super.onPageStarted(view, url, favicon);
+                // En server som omdirigerar till http (t ex https://…/supportkiosk → http://…/supportkiosk/)
+                // går inte via shouldOverrideUrlLoading. Är värden tillåten: ladda https-adressen i stället.
+                String https = urlPolicy != null ? urlPolicy.httpsUpgrade(url) : null;
+                long now = System.currentTimeMillis();
+                // Skydd mot loop: en server som skickar https tillbaka till http igen
+                if (https != null && !(https.equals(lastHttpsUpgrade) && now - lastHttpsUpgradeAt < 10_000)) {
+                    lastHttpsUpgrade = https;
+                    lastHttpsUpgradeAt = now;
+                    Log.d("publikiosk", "Omdirigering till http, öppnar med https: " + https);
+                    view.stopLoading();
+                    view.loadUrl(https);
+                    return;
+                }
                 bridgeAllowed = UrlPolicy.sameSite(url, savedUrl);
             }
 
