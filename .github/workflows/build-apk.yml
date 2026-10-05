@@ -7,6 +7,10 @@ on:
   push:
     branches:
       - main  # Runs when code is pushed to the main branch (adjust if you use another branch)
+    # Bara dokumentation: inget nytt bygge
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
   pull_request:
     branches:
       - main
@@ -59,8 +63,19 @@ jobs:
           echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
           echo "Tagging release as $VERSION_NAME"
 
-      - name: Create Git tag
+      # Finns releasen för versionen redan (versionName inte höjd): ingen ny tagg eller uppladdning
+      - name: Check if release exists
         if: github.event_name == 'push'
+        run: |
+          if gh release view "v${{ env.VERSION_NAME }}" > /dev/null 2>&1; then
+            echo "Release v${{ env.VERSION_NAME }} finns redan, hoppar över"
+            echo "RELEASE_EXISTS=true" >> $GITHUB_ENV
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Git tag
+        if: github.event_name == 'push' && env.RELEASE_EXISTS != 'true'
         run: |
           # Create a tag using versionName (e.g., v1.0.0)
           git tag v${{ env.VERSION_NAME }}
@@ -69,7 +84,7 @@ jobs:
       # Bara release-APK:n publiceras. Debug-bygget har WebView-felsökning och http mot
       # emulatorn påslaget och ska aldrig finnas i en publik release.
       - name: Upload APK to GitHub releases
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && env.RELEASE_EXISTS != 'true'
         uses: softprops/action-gh-release@v1
         with:
           files: app/build/outputs/apk/release/app-release.apk
