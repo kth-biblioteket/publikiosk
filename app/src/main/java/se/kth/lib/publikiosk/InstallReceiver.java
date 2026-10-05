@@ -10,6 +10,11 @@ public class InstallReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
+        if (Intent.ACTION_MY_PACKAGE_REPLACED.equals(intent.getAction())) {
+            Log.e(TAG, "Our app was updated!");
+            restartApp(context);
+            return;
+        }
         Uri packageUri = intent.getData();
         if (packageUri != null) {
             String packageName = packageUri.getSchemeSpecificPart();

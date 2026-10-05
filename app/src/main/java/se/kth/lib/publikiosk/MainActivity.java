@@ -123,6 +123,7 @@ public class MainActivity extends AppCompatActivity {
     private GestureDetector gestureDetector;
 
     boolean isUserNavigation = false;
+    private boolean keyboardOpen = false;
     private String lastHttpsUpgrade;
     private long lastHttpsUpgradeAt;
     boolean isInitialLoading = true;
@@ -188,14 +189,25 @@ public class MainActivity extends AppCompatActivity {
                 int screenHeight = myMain.getRootView().getHeight();
                 int keypadHeight = screenHeight - r.bottom;
 
-                if (keypadHeight > screenHeight * 0.15) {
-                    ConstraintLayout.LayoutParams params = (ConstraintLayout.LayoutParams) myWeb.getLayoutParams();
-                    params.bottomMargin = keypadHeight;
+                boolean open = keypadHeight > screenHeight * 0.15;
+                // Bara den del av vyn som hamnar bakom tangentbordet. I helskärm krymper inte Android
+                // fönstret (adjustResize gäller inte), men när navigeringsfältet visas gör den det, och
+                // då ska ingen extra marginal läggas till.
+                int[] location = new int[2];
+                myMain.getLocationOnScreen(location);
+                int hidden = Math.max(0, location[1] + myMain.getHeight() - r.bottom);
+                int margin = open ? hidden : 0;
+                ConstraintLayout.LayoutParams params = (ConstraintLayout.LayoutParams) myWeb.getLayoutParams();
+                if (params.bottomMargin != margin) {
+                    params.bottomMargin = margin;
                     myWeb.setLayoutParams(params);
-                } else {
-                    ConstraintLayout.LayoutParams params = (ConstraintLayout.LayoutParams) myWeb.getLayoutParams();
-                    params.bottomMargin = 0;
-                    myWeb.setLayoutParams(params);
+                }
+                // Medan tangentbordet är uppe visas navigeringsfältet, så att knappen för att fälla ner
+                // det syns (i helskärm måste man annars svepa upp från nederkanten för att se den)
+                if (open != keyboardOpen) {
+                    keyboardOpen = open;
+                    if (open) showSystemUI();
+                    else applyFullscreen(savedFullscreen);
                 }
             }
         });
@@ -985,7 +997,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        if (hasFocus && fullscreenCheckbox.isChecked()) {
+        if (hasFocus && fullscreenCheckbox.isChecked() && !keyboardOpen) {
             hideSystemUI();
         }
     }
