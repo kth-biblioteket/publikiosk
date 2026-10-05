@@ -84,6 +84,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String PREFS_INACTIVITY_TIMEOUT_WEB = "inactivitytimeoutweb";
     private static final String PREFS_NAME = "MyPrefs";
     private static final String PREF_ALLOWED_HOSTS = "allowedhosts";
+    private static final String DEFAULT_ALLOWED_HOSTS = "kth.se";
     private static final String PREF_CLEAR_SESSION = "clearsession";
     private static final String PREF_INITIAL_SCALE = "initialscale";
     private static final String PREF_ORIENTATION = "orientation";
@@ -696,7 +697,10 @@ public class MainActivity extends AppCompatActivity {
     private void loadSettings() {
         SharedPreferences sharedPreferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
 
-        savedAllowedHosts = sharedPreferences.getString(PREF_ALLOWED_HOSTS, "");
+        // Standard tills enheten styrs från publicomtools (ALLOWED_HOSTS). Underdomäner ingår,
+        // så kth.se täcker t ex apps.lib.kth.se och spacefinder.lib.kth.se; startsidans värd
+        // (wagnerguide.com) är alltid tillåten.
+        savedAllowedHosts = sharedPreferences.getString(PREF_ALLOWED_HOSTS, DEFAULT_ALLOWED_HOSTS);
         savedClearSession = sharedPreferences.getBoolean(PREF_CLEAR_SESSION, true);
         savedInitialScale = sharedPreferences.getString(PREF_INITIAL_SCALE, "100");
         savedInactivityTimeout = sharedPreferences.getString(PREFS_INACTIVITY_TIMEOUT, "60000");
