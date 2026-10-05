@@ -28,9 +28,18 @@ public class StatusReporter {
     private static final String TAG = "StatusReporter";
     private static final int CLIENT_VERSION = 1;
 
-    /** Läget i appen när rapporten skickas */
+    /** Läget i appen när rapporten skickas, och kommandona i svaret */
     public interface State {
         Boolean pageLoaded();
+
+        /** Senaste händelsen i menyn (PIN bytt, upplåst …), eller null */
+        String menuEvent();
+
+        /**
+         * Svaret från publicomtools, på huvudtråden: reload (hämta inställningar), reboot (starta om),
+         * screenshot (skärmdump) och pinUnlock (lås upp menyn).
+         */
+        void onCommands(JSONObject response);
     }
 
     private final Context context;
@@ -73,7 +82,8 @@ public class StatusReporter {
         JSONObject status = collect();
         executor.execute(() -> {
             try {
-                client.heartbeat(status);
+                JSONObject response = client.heartbeat(status);
+                if (response != null) handler.post(() -> state.onCommands(response));
             } catch (Exception e) {
                 Log.w(TAG, "Statusrapporten kunde inte skickas: " + e.getMessage());
             }
@@ -99,6 +109,8 @@ public class StatusReporter {
             String version = ManagedConfig.configVersion(context);
             if (!version.isEmpty()) s.put("configVersion", version);
             s.put("intervalMinutes", ManagedConfig.heartbeatIntervalMinutes(context));
+            String menuEvent = state.menuEvent();
+            if (menuEvent != null) s.put("menuEvent", menuEvent);
             Boolean loaded = state.pageLoaded();
             if (loaded != null) s.put("pageLoaded", loaded);
             s.put("kioskLocked", kioskLocked());

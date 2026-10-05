@@ -101,6 +101,18 @@ public class KioskPolicy {
         safely(() -> dpm.setApplicationRestrictions(admin, GBOARD, new Bundle()));
     }
 
+    /** Starta om enheten (begärt från publicomtools). Kräver Android 7. */
+    public boolean reboot() {
+        if (!isDeviceOwner() || Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return false;
+        try {
+            dpm.reboot(admin);
+            return true;
+        } catch (Exception e) {
+            Log.w(TAG, "Omstart misslyckades", e);
+            return false;
+        }
+    }
+
     private ComponentName homeAlias() {
         return new ComponentName(context, context.getPackageName() + ".KioskHome");
     }

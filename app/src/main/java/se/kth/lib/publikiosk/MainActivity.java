@@ -145,7 +145,7 @@ public class MainActivity extends AppCompatActivity {
         pinStore = new PinStore(this);
         kioskPolicy = new KioskPolicy(this);
         publicomtools = new PublicomClient(this);
-        statusReporter = new StatusReporter(this, publicomtools, () -> pageLoaded);
+        statusReporter = new StatusReporter(this, publicomtools, reporterState());
 
         setContentView(R.layout.activity_main);
 
@@ -594,6 +594,124 @@ public class MainActivity extends AppCompatActivity {
         myWeb.postDelayed(() -> myWeb.clearHistory(), 1000);
     }
 
+    // --- Kommandon från publicomtools (svaret på statusrapporten) ---
+
+    /** Senaste tryck på skärmen, för att bara starta om eller ladda om när ingen använder enheten */
+    private long lastTouchAt = 0;
+    private static final long IDLE_MS = 2 * 60_000;
+    private static final long IDLE_CHECK_MS = 30_000;
+    private final java.util.Set<String> waitingForIdle = new java.util.HashSet<>();
+    private final Handler commandHandler = new Handler(Looper.getMainLooper());
+
+    private StatusReporter.State reporterState() {
+        return new StatusReporter.State() {
+            @Override
+            public Boolean pageLoaded() {
+                return pageLoaded;
+            }
+
+            @Override
+            public String menuEvent() {
+                return pinStore.lastEvent();
+            }
+
+            @Override
+            public void onCommands(org.json.JSONObject response) {
+                handleCommands(response);
+            }
+        };
+    }
+
+    private void handleCommands(org.json.JSONObject response) {
+        if (response.optBoolean("pinUnlock")) {
+            pinStore.unlock();
+            Log.i("publikiosk", "Menyn upplåst från publicomtools");
+        }
+        if (response.optBoolean("screenshot")) takeScreenshot();
+        // En omstart hämtar också inställningarna, så den vinner över reload
+        if (response.optBoolean("reboot")) {
+            whenIdle("reboot", () -> {
+                if (!kioskPolicy.reboot()) Log.w("publikiosk", "Omstart stöds inte på enheten (kräver Android 7 och device owner)");
+            });
+        } else if (response.optBoolean("reload")) {
+            whenIdle("reload", () -> fetchConfig(false));
+        }
+    }
+
+    private final Runnable closeDrawerWhenIdle = new Runnable() {
+        @Override
+        public void run() {
+            if (!drawerLayout.isDrawerOpen(Gravity.LEFT)) return;
+            if (System.currentTimeMillis() - lastTouchAt >= IDLE_MS && !isPinDialogOpen) {
+                drawerLayout.closeDrawer(Gravity.LEFT);
+            } else {
+                commandHandler.postDelayed(this, IDLE_CHECK_MS);
+            }
+        }
+    };
+
+    private boolean isIdle() {
+        return System.currentTimeMillis() - lastTouchAt >= IDLE_MS
+                && !drawerLayout.isDrawerOpen(Gravity.LEFT)
+                && !isPinDialogOpen;
+    }
+
+    /** Kör när ingen har rört skärmen på 2 minuter (och menyn inte är öppen). Samma kommando bara en gång åt gången. */
+    private void whenIdle(String key, Runnable action) {
+        if (!waitingForIdle.add(key)) return;
+        Runnable check = new Runnable() {
+            @Override
+            public void run() {
+                if (isFinishing() || isDestroyed()) return;
+                if (isIdle()) {
+                    waitingForIdle.remove(key);
+                    action.run();
+                } else {
+                    commandHandler.postDelayed(this, IDLE_CHECK_MS);
+                }
+            }
+        };
+        commandHandler.post(check);
+    }
+
+    /**
+     * Skärmdump av appens eget fönster (inget annat på enheten), högst 1280 bildpunkter bred,
+     * som JPEG till publicomtools.
+     */
+    private void takeScreenshot() {
+        View root = getWindow().getDecorView();
+        int width = root.getWidth(), height = root.getHeight();
+        if (width <= 0 || height <= 0) return;
+        android.graphics.Bitmap bitmap = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // PixelCopy får med WebView, som ritas med hårdvaruacceleration
+            android.view.PixelCopy.request(getWindow(), bitmap, result -> {
+                if (result == android.view.PixelCopy.SUCCESS) uploadScreenshot(bitmap);
+                else Log.w("publikiosk", "Skärmdumpen misslyckades: " + result);
+            }, commandHandler);
+        } else {
+            root.draw(new android.graphics.Canvas(bitmap));
+            uploadScreenshot(bitmap);
+        }
+    }
+
+    private void uploadScreenshot(android.graphics.Bitmap bitmap) {
+        background.execute(() -> {
+            try {
+                android.graphics.Bitmap scaled = bitmap;
+                if (bitmap.getWidth() > 1280) {
+                    int h = Math.round(bitmap.getHeight() * 1280f / bitmap.getWidth());
+                    scaled = android.graphics.Bitmap.createScaledBitmap(bitmap, 1280, h, true);
+                }
+                java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+                scaled.compress(android.graphics.Bitmap.CompressFormat.JPEG, 70, out);
+                publicomtools.uploadScreenshot(out.toByteArray());
+            } catch (Exception e) {
+                Log.w("publikiosk", "Skärmdumpen kunde inte skickas: " + e.getMessage());
+            }
+        });
+    }
+
     /** Menyns del för publicomtools: inskrivning med kod, eller status när enheten är ansluten. */
     private void setupPublicomtools() {
         EditText url = findViewById(R.id.publicomtools_url);
@@ -605,10 +723,11 @@ public class MainActivity extends AppCompatActivity {
             v.setEnabled(false);
             background.execute(() -> {
                 try {
-                    String host = publicomtools.enroll(baseUrl, enrollCode);
+                    PublicomClient.Enrollment enrollment = publicomtools.enroll(baseUrl, enrollCode);
+                    if (enrollment.recoveryCode != null) pinStore.setRecoveryCode(enrollment.recoveryCode);
                     runOnUiThread(() -> {
                         code.setText("");
-                        Toast.makeText(this, "Ansluten som " + host, Toast.LENGTH_LONG).show();
+                        Toast.makeText(this, "Ansluten som " + enrollment.host, Toast.LENGTH_LONG).show();
                         fetchConfig(true);
                         statusReporter.start();
                         updatePublicomtoolsUi();
@@ -774,6 +893,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean dispatchTouchEvent(MotionEvent ev) {
         screentouched = true;
+        lastTouchAt = System.currentTimeMillis();
         // Starta om timers
         resetInactivityDetection();
         resetWebInactivityDetection();
@@ -814,12 +934,15 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onDrawerOpened(View drawerView) {
-                // Gör inget
+                // En meny som glöms öppen ger vem som helst åtkomst till den (t ex Lämna kioskläge):
+                // stäng den efter 2 minuter utan tryck
+                commandHandler.postDelayed(closeDrawerWhenIdle, IDLE_CHECK_MS);
             }
 
             @Override
             public void onDrawerClosed(View drawerView) {
                 isPinVerified = false;
+                commandHandler.removeCallbacks(closeDrawerWhenIdle);
             }
 
             @Override
@@ -926,13 +1049,15 @@ public class MainActivity extends AppCompatActivity {
         }
         isPinDialogOpen = true;
         final EditText pinInput = pinField("PIN");
-        AlertDialog dialog = new AlertDialog.Builder(this)
+        AlertDialog.Builder pinBuilder = new AlertDialog.Builder(this)
                 .setTitle("Ange PIN")
                 .setView(pinInput)
                 .setPositiveButton("OK", null)
                 .setNegativeButton("Avbryt", (d, which) -> d.cancel())
-                .setOnDismissListener(d -> isPinDialogOpen = false)
-                .create();
+                .setOnDismissListener(d -> isPinDialogOpen = false);
+        // Glömd PIN: återställningskoden från inskrivningen (står under Teknik i publicomtools)
+        if (pinStore.hasRecoveryCode()) pinBuilder.setNeutralButton("Glömt PIN?", (d, which) -> promptForRecoveryCode());
+        AlertDialog dialog = pinBuilder.create();
         dialog.show();
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
             switch (pinStore.verify(pinInput.getText().toString())) {
@@ -952,6 +1077,38 @@ public class MainActivity extends AppCompatActivity {
                 default:
                     pinInput.setText("");
                     pinInput.setError("Fel PIN, " + pinStore.attemptsLeft() + " försök kvar");
+            }
+        });
+    }
+
+    /** "Glömt PIN?": rätt återställningskod ger en ny PIN. Fel kod räknas som fel PIN. */
+    private void promptForRecoveryCode() {
+        isPinDialogOpen = true;
+        final EditText codeInput = new EditText(this);
+        codeInput.setHint("t ex K7QM-2XPA");
+        codeInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Återställningskod")
+                .setMessage("Koden står under Teknik för enheten i publicomtools.")
+                .setView(codeInput)
+                .setPositiveButton("OK", null)
+                .setNegativeButton("Avbryt", (d, which) -> d.cancel())
+                .setOnDismissListener(d -> isPinDialogOpen = false)
+                .create();
+        dialog.show();
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            switch (pinStore.verifyRecovery(codeInput.getText().toString())) {
+                case OK:
+                    dialog.dismiss();
+                    promptForNewPin(true);
+                    break;
+                case LOCKED:
+                    dialog.dismiss();
+                    showLocked(pinStore.lockedForMs());
+                    break;
+                default:
+                    codeInput.setText("");
+                    codeInput.setError("Fel kod, " + pinStore.attemptsLeft() + " försök kvar");
             }
         });
     }
@@ -1127,6 +1284,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         statusReporter.stop();
+        commandHandler.removeCallbacksAndMessages(null);
         background.shutdown();
         // Timrarna får inte köra mot en aktivitet som är borta (t ex efter recreate)
         if (inactivityHandler != null) inactivityHandler.removeCallbacksAndMessages(null);

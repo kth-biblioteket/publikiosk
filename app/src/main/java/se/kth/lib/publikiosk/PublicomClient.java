@@ -51,8 +51,19 @@ public class PublicomClient {
         prefs.edit().remove(KEY_TOKEN).remove(KEY_HOST).apply();
     }
 
+    /** Inskriven enhet: id och återställningskoden för menyn (glömd PIN). */
+    public static final class Enrollment {
+        public final String host;
+        public final String recoveryCode;
+
+        Enrollment(String host, String recoveryCode) {
+            this.host = host;
+            this.recoveryCode = recoveryCode;
+        }
+    }
+
     /** Engångskoden från admin byts mot enhetens egen token. Kastar IOException med ett meddelande på svenska. */
-    public String enroll(String baseUrl, String code) throws IOException {
+    public Enrollment enroll(String baseUrl, String code) throws IOException {
         String url = normalizeBaseUrl(baseUrl);
         JSONObject body = new JSONObject();
         try {
@@ -69,7 +80,7 @@ public class PublicomClient {
             String host = json.getString("host");
             String token = json.getString("token");
             prefs.edit().putString(KEY_URL, url).putString(KEY_HOST, host).putString(KEY_TOKEN, token).apply();
-            return host;
+            return new Enrollment(host, json.optString("recoveryCode", null));
         } catch (Exception e) {
             throw new IOException("Oväntat svar från publicomtools");
         }
@@ -99,6 +110,28 @@ public class PublicomClient {
             return new JSONObject(res.body);
         } catch (Exception e) {
             return new JSONObject();
+        }
+    }
+
+    /** Skärmdump (JPEG) av appen, efter "Ta skärmdump" i admin. */
+    public void uploadScreenshot(byte[] jpeg) throws IOException {
+        if (!isEnrolled()) return;
+        HttpURLConnection c = (HttpURLConnection) new URL(baseUrl() + "/api/device/screenshot").openConnection();
+        try {
+            c.setRequestMethod("POST");
+            c.setConnectTimeout(15_000);
+            c.setReadTimeout(30_000);
+            c.setDoOutput(true);
+            c.setFixedLengthStreamingMode(jpeg.length);
+            c.setRequestProperty("Content-Type", "image/jpeg");
+            c.setRequestProperty("Authorization", "Bearer " + prefs.getString(KEY_TOKEN, null));
+            try (OutputStream out = c.getOutputStream()) {
+                out.write(jpeg);
+            }
+            int status = c.getResponseCode();
+            if (status != 200) throw new IOException("Skärmdump: publicomtools svarade " + status);
+        } finally {
+            c.disconnect();
         }
     }
 

@@ -39,6 +39,9 @@ public class PinStore {
     private static final String KEY_FAILED = "failed";
     private static final String KEY_LOCKS = "locks";
     private static final String KEY_LOCKED_UNTIL = "lockedUntil";
+    private static final String KEY_RECOVERY_HASH = "recoveryHash";
+    private static final String KEY_RECOVERY_SALT = "recoverySalt";
+    private static final String KEY_EVENT = "event";
 
     private static final String LEGACY_PREFS = "MyPrefs";
     private static final String LEGACY_PIN = "pin";
@@ -89,9 +92,15 @@ public class PinStore {
             prefs.edit().putInt(KEY_FAILED, 0).putInt(KEY_LOCKS, 0).remove(KEY_LOCKED_UNTIL).apply();
             return Result.OK;
         }
+        return failure();
+    }
+
+    /** Ett fel försök (PIN eller återställningskod): efter MAX_ATTEMPTS spärras menyn en stund. */
+    private Result failure() {
         int failed = prefs.getInt(KEY_FAILED, 0) + 1;
         SharedPreferences.Editor e = prefs.edit();
         if (failed >= MAX_ATTEMPTS) {
+            event("spärrad efter " + MAX_ATTEMPTS + " fel");
             // 1 min, 2, 4, 8, sedan högst 15 min. Räknaren nollställs efter varje spärr.
             int locks = prefs.getInt(KEY_LOCKS, 0);
             long ms = Math.min(MAX_LOCK_MS, FIRST_LOCK_MS << Math.min(locks, 10));
@@ -115,6 +124,7 @@ public class PinStore {
     /** Ny PIN. Tar också bort spärren. */
     public void set(String pin) {
         store(pin);
+        event("PIN bytt");
         prefs.edit().putBoolean(KEY_MUST_CHANGE, false).putInt(KEY_FAILED, 0).putInt(KEY_LOCKS, 0)
                 .remove(KEY_LOCKED_UNTIL).apply();
     }
@@ -122,6 +132,62 @@ public class PinStore {
     /** Tar bort spärren (t ex från publicomtools). */
     public void unlock() {
         prefs.edit().putInt(KEY_FAILED, 0).putInt(KEY_LOCKS, 0).remove(KEY_LOCKED_UNTIL).apply();
+        event("upplåst från publicomtools");
+    }
+
+    /**
+     * Återställningskoden från inskrivningen (glömd PIN). Bara hashen sparas; IT ser koden i
+     * publicomtools under Teknik.
+     */
+    public void setRecoveryCode(String code) {
+        byte[] salt = new byte[16];
+        new SecureRandom().nextBytes(salt);
+        String algorithm = algorithm();
+        byte[] hash = pbkdf2(normalizeCode(code), salt, algorithm, ITERATIONS);
+        prefs.edit()
+                .putString(KEY_RECOVERY_HASH, Base64.encodeToString(hash, Base64.NO_WRAP))
+                .putString(KEY_RECOVERY_SALT, Base64.encodeToString(salt, Base64.NO_WRAP))
+                .putString(KEY_ALGORITHM + "Recovery", algorithm)
+                .apply();
+    }
+
+    public boolean hasRecoveryCode() {
+        return prefs.contains(KEY_RECOVERY_HASH);
+    }
+
+    /**
+     * Glömd PIN: rätt återställningskod tar bort spärren, och sedan väljs en ny PIN. Fel kod
+     * räknas som ett fel PIN (samma spärr), så koden går inte att gissa sig till.
+     */
+    public Result verifyRecovery(String code) {
+        if (lockedForMs() > 0) return Result.LOCKED;
+        String hash = prefs.getString(KEY_RECOVERY_HASH, null);
+        String salt = prefs.getString(KEY_RECOVERY_SALT, null);
+        if (hash != null && salt != null && code != null) {
+            byte[] actual = pbkdf2(normalizeCode(code), Base64.decode(salt, Base64.NO_WRAP),
+                    prefs.getString(KEY_ALGORITHM + "Recovery", algorithm()), ITERATIONS);
+            if (actual != null && MessageDigest.isEqual(Base64.decode(hash, Base64.NO_WRAP), actual)) {
+                prefs.edit().putInt(KEY_FAILED, 0).putInt(KEY_LOCKS, 0).remove(KEY_LOCKED_UNTIL).apply();
+                event("återställningskoden användes");
+                return Result.OK;
+            }
+        }
+        return failure();
+    }
+
+    /** Senaste händelsen i menyn, till statusrapporten: "PIN bytt 2026-10-05 21:03" */
+    public String lastEvent() {
+        return prefs.getString(KEY_EVENT, null);
+    }
+
+    private void event(String what) {
+        String when = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.ROOT).format(new java.util.Date());
+        prefs.edit().putString(KEY_EVENT, what + " " + when).apply();
+    }
+
+    /** "k7qm 2xpa" → "K7QM2XPA" */
+    private static String normalizeCode(String code) {
+        return code.toUpperCase(java.util.Locale.ROOT).replaceAll("[^A-Z0-9]", "");
     }
 
     private void store(String pin) {
