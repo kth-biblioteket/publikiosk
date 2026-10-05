@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.UserManager;
 import android.util.Log;
 
@@ -29,6 +30,9 @@ public class KioskPolicy {
             UserManager.DISALLOW_MOUNT_PHYSICAL_MEDIA,
             UserManager.DISALLOW_USB_FILE_TRANSFER,
     };
+
+    /** Gboard, Googles tangentbord (förinstallerat på de flesta enheter) */
+    private static final String GBOARD = "com.google.android.inputmethod.latin";
 
     private final Context context;
     private final DevicePolicyManager dpm;
@@ -64,6 +68,25 @@ public class KioskPolicy {
             dpm.addPersistentPreferredActivity(admin, home, homeAlias());
         });
         for (String r : RESTRICTIONS) safely(() -> dpm.addUserRestriction(admin, r));
+        safely(() -> dpm.setApplicationRestrictions(admin, GBOARD, keyboardConfig()));
+    }
+
+    /**
+     * Gboard utan den övre raden (inställningar, GIF, klistermärken, översättning, teman, mikrofon)
+     * och utan urklipp och delning. Gboard läser det som hanterad konfiguration från device owner.
+     * Andra tangentbord ignorerar den.
+     */
+    private static Bundle keyboardConfig() {
+        Bundle preferences = new Bundle();
+        preferences.putBoolean("show_suggestion_strip", false);
+        Bundle config = new Bundle();
+        config.putBundle("preferences", preferences);
+        config.putBoolean("config_settings_access_point", false);
+        config.putBoolean("config_theme_access_point", false);
+        config.putBoolean("config_clipboard", false);
+        config.putBoolean("config_sharing", false);
+        config.putBoolean("enable_text_preview", false);
+        return config;
     }
 
     /** "Lämna kioskläge": ta bort låsningarna så att IT kommer åt enheten. */
@@ -75,6 +98,7 @@ public class KioskPolicy {
         // Avstängd är appen inte längre en hemskärm, så Hem går till enhetens vanliga startskärm
         safely(() -> setHomeEnabled(false));
         for (String r : RESTRICTIONS) safely(() -> dpm.clearUserRestriction(admin, r));
+        safely(() -> dpm.setApplicationRestrictions(admin, GBOARD, new Bundle()));
     }
 
     private ComponentName homeAlias() {
