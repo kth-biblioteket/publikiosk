@@ -98,6 +98,11 @@ public class MainActivity extends AppCompatActivity {
     private UrlPolicy urlPolicy;
     private PinStore pinStore;
     private KioskPolicy kioskPolicy;
+    private PublicomClient publicomtools;
+    private StatusReporter statusReporter;
+    private final java.util.concurrent.ExecutorService background = java.util.concurrent.Executors.newSingleThreadExecutor();
+    /** Om startsidan laddats (null = vet inte än), till statusrapporten */
+    private volatile Boolean pageLoaded = null;
 
     /** JS-bryggan "Android" svarar bara när sidan kommer från startsidans värd (sätts i onPageStarted). */
     static volatile boolean bridgeAllowed = false;
@@ -139,6 +144,8 @@ public class MainActivity extends AppCompatActivity {
 
         pinStore = new PinStore(this);
         kioskPolicy = new KioskPolicy(this);
+        publicomtools = new PublicomClient(this);
+        statusReporter = new StatusReporter(this, publicomtools, () -> pageLoaded);
 
         setContentView(R.layout.activity_main);
 
@@ -275,6 +282,13 @@ public class MainActivity extends AppCompatActivity {
                 return true;
             }
 
+            // Startsidan gick inte att ladda (nätverk, DNS, certifikat …): syns i statusrapporten
+            @Override
+            public void onReceivedError(WebView view, WebResourceRequest request, android.webkit.WebResourceError error) {
+                super.onReceivedError(view, request, error);
+                if (request.isForMainFrame() && UrlPolicy.sameSite(request.getUrl().toString(), savedUrl)) pageLoaded = false;
+            }
+
             @Override
             public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
                 super.onPageStarted(view, url, favicon);
@@ -372,6 +386,11 @@ public class MainActivity extends AppCompatActivity {
                     startWebInactivityDetection();
                 }
                 if (url.equals(savedUrl)) {
+                    if (pageLoaded == null || !pageLoaded) {
+                        boolean first = pageLoaded == null;
+                        pageLoaded = true;
+                        if (!first) statusReporter.sendNow();
+                    }
                     isUserNavigation = false;
                     // Funktion för att kunna logga användaraktivitet(klick på websidans element)
                     new Handler().postDelayed(() -> {
@@ -458,6 +477,13 @@ public class MainActivity extends AppCompatActivity {
         // Ingen PIN än (ny installation): den som installerar väljer en innan något annat
         if (!pinStore.isSet()) {
             promptForNewPin(true);
+        }
+
+        // publicomtools: anslutning i menyn, inställningar vid start och statusrapporter
+        setupPublicomtools();
+        if (publicomtools.isEnrolled()) {
+            fetchConfig(false);
+            statusReporter.start();
         }
 
         /*
@@ -567,6 +593,87 @@ public class MainActivity extends AppCompatActivity {
         // clearHistory gäller först när nästa sida laddats
         myWeb.postDelayed(() -> myWeb.clearHistory(), 1000);
     }
+
+    /** Menyns del för publicomtools: inskrivning med kod, eller status när enheten är ansluten. */
+    private void setupPublicomtools() {
+        EditText url = findViewById(R.id.publicomtools_url);
+        EditText code = findViewById(R.id.enroll_code);
+        url.setText(publicomtools.baseUrl());
+        findViewById(R.id.enroll_button).setOnClickListener(v -> {
+            String baseUrl = url.getText().toString();
+            String enrollCode = code.getText().toString();
+            v.setEnabled(false);
+            background.execute(() -> {
+                try {
+                    String host = publicomtools.enroll(baseUrl, enrollCode);
+                    runOnUiThread(() -> {
+                        code.setText("");
+                        Toast.makeText(this, "Ansluten som " + host, Toast.LENGTH_LONG).show();
+                        fetchConfig(true);
+                        statusReporter.start();
+                        updatePublicomtoolsUi();
+                    });
+                } catch (Exception e) {
+                    runOnUiThread(() -> code.setError(e.getMessage()));
+                } finally {
+                    runOnUiThread(() -> v.setEnabled(true));
+                }
+            });
+        });
+        findViewById(R.id.fetch_button).setOnClickListener(v -> fetchConfig(true));
+        updatePublicomtoolsUi();
+    }
+
+    private void updatePublicomtoolsUi() {
+        boolean enrolled = publicomtools.isEnrolled();
+        TextView status = findViewById(R.id.publicomtools_status);
+        status.setText(enrolled
+                ? "Ansluten som " + publicomtools.host() + " (" + publicomtools.baseUrl() + ")"
+                : "Inte ansluten. Inställningarna görs här i menyn.");
+        findViewById(R.id.enroll_form).setVisibility(enrolled ? View.GONE : View.VISIBLE);
+        findViewById(R.id.fetch_button).setVisibility(enrolled ? View.VISIBLE : View.GONE);
+
+        // Styrs enheten från publicomtools är inställningarna skrivskyddade här
+        boolean managed = enrolled && ManagedConfig.isManaged(this);
+        findViewById(R.id.managed_note).setVisibility(managed ? View.VISIBLE : View.GONE);
+        for (View field : new View[]{urlInput, allowedHostsInput, clearSessionCheckbox, initialscaleInput, inactivitytimeoutInput,
+                inactivitytimeoutwebInput, orientationSpinner, fullscreenCheckbox, splashscreenCheckbox, splashscreenvideoCheckbox}) {
+            field.setEnabled(!managed);
+        }
+        findViewById(R.id.save_button).setVisibility(managed ? View.GONE : View.VISIBLE);
+    }
+
+    /**
+     * Hämta inställningarna från publicomtools och använd dem. Har något som syns ändrats laddas
+     * startsidan om, med en ny session. Utan nät gäller den senast hämtade kopian.
+     */
+    private void fetchConfig(boolean showResult) {
+        background.execute(() -> {
+            try {
+                org.json.JSONObject config = publicomtools.fetchConfig();
+                if (config == null) return;
+                boolean changed = ManagedConfig.apply(this, config);
+                runOnUiThread(() -> {
+                    if (changed) {
+                        loadSettings();
+                        applySettings();
+                        returnToStart();
+                    }
+                    updatePublicomtoolsUi();
+                    statusReporter.sendNow();
+                    if (showResult) Toast.makeText(this, changed ? "Nya inställningar" : "Inställningarna är oförändrade", Toast.LENGTH_SHORT).show();
+                });
+            } catch (Exception e) {
+                Log.w("publikiosk", "Inställningarna kunde inte hämtas: " + e.getMessage());
+                runOnUiThread(() -> {
+                    if (!publicomtools.isEnrolled()) ManagedConfig.release(this);
+                    updatePublicomtoolsUi();
+                    if (showResult) Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
+                });
+            }
+        });
+    }
+
 
     // Avsluta kioskläge
     private void quitKiosk() {
@@ -1005,6 +1112,8 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        statusReporter.stop();
+        background.shutdown();
         // Timrarna får inte köra mot en aktivitet som är borta (t ex efter recreate)
         if (inactivityHandler != null) inactivityHandler.removeCallbacksAndMessages(null);
         if (inactivitywebHandler != null) inactivitywebHandler.removeCallbacksAndMessages(null);

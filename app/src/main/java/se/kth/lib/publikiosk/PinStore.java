@@ -6,9 +6,6 @@ import android.os.Build;
 import android.util.Base64;
 import android.util.Log;
 
-import androidx.security.crypto.EncryptedSharedPreferences;
-import androidx.security.crypto.MasterKey;
-
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 
@@ -51,24 +48,8 @@ public class PinStore {
     private final SharedPreferences prefs;
 
     public PinStore(Context context) {
-        prefs = open(context.getApplicationContext());
+        prefs = SecurePrefs.open(context, FILE);
         migrateLegacy(context.getApplicationContext());
-    }
-
-    /**
-     * EncryptedSharedPreferences, eller en vanlig privat fil om nyckellagret inte fungerar på enheten.
-     * Där ligger ändå bara hashen, och appens filer går inte att säkerhetskopiera (allowBackup=false).
-     */
-    private static SharedPreferences open(Context context) {
-        try {
-            MasterKey key = new MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build();
-            return EncryptedSharedPreferences.create(context, FILE + "_secure", key,
-                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM);
-        } catch (Exception e) {
-            Log.e(TAG, "EncryptedSharedPreferences fungerar inte, använder privat fil", e);
-            return context.getSharedPreferences(FILE, Context.MODE_PRIVATE);
-        }
     }
 
     private void migrateLegacy(Context context) {

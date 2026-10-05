@@ -63,6 +63,59 @@
                 android:textSize="20sp"
                 android:textColor="#000000"
                 android:layout_gravity="center"/>
+            <!-- Anslutning till publicomtools -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="publicomtools"
+                android:textSize="24sp"
+                android:layout_marginTop="16dp"/>
+            <TextView
+                android:id="@+id/publicomtools_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="16sp"
+                android:layout_marginBottom="8dp"/>
+            <LinearLayout
+                android:id="@+id/enroll_form"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Adress"
+                    android:textSize="16sp"/>
+                <EditText
+                    android:id="@+id/publicomtools_url"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:autofillHints=""
+                    android:inputType="textUri"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Inskrivningskod (från Teknik i publicomtools)"
+                    android:textSize="16sp"/>
+                <EditText
+                    android:id="@+id/enroll_code"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:autofillHints=""
+                    android:hint="t ex K7QM-2XPA"
+                    android:inputType="textCapCharacters|textNoSuggestions"/>
+                <Button
+                    android:id="@+id/enroll_button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Anslut till publicomtools"/>
+            </LinearLayout>
+            <Button
+                android:id="@+id/fetch_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Hämta inställningar nu"/>
+
             <TextView
                 android:id="@+id/label_header"
                 android:layout_width="wrap_content"
@@ -70,6 +123,15 @@
                 android:text="Inställningar"
                 android:textSize="36sp"
                 android:layout_marginBottom="20dp"/>
+            <TextView
+                android:id="@+id/managed_note"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Inställningarna styrs från publicomtools och kan inte ändras här."
+                android:textSize="16sp"
+                android:textStyle="italic"
+                android:visibility="gone"
+                android:layout_marginBottom="12dp"/>
             <TextView
                 android:id="@+id/label_inactivitytimeout"
                 android:layout_width="wrap_content"

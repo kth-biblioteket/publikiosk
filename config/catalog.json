@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "groups": [
+    { "id": "enhet", "label": "Enhet" },
+    { "id": "startsida", "label": "Startsida och webbplatser" },
+    { "id": "session", "label": "Inaktivitet och session" },
+    { "id": "skarm", "label": "Skärm" },
+    { "id": "teknik", "label": "Teknik" }
+  ],
+  "keys": [
+    { "key": "COMPUTER_NAME", "label": "Visningsnamn", "group": "enhet", "type": "string", "perComputer": true,
+      "help": "Enhetens namn, t ex i statusrapporten." },
+    { "key": "START_URL", "label": "Startsida", "group": "startsida", "type": "url", "default": "https://wagnerguide.com/c/kth/kth",
+      "help": "Webbappen som visas. Måste börja med https://. Ange den exakt som servern svarar, t ex med / på slutet." },
+    { "key": "ALLOWED_HOSTS", "label": "Tillåtna webbplatser", "group": "startsida", "type": "csv", "default": "kth.se",
+      "help": "Utöver startsidans webbplats. Underdomäner ingår (kth.se tillåter apps.lib.kth.se). Andra länkar blockeras." },
+    { "key": "INACTIVITY_TIMEOUT", "label": "Tillbaka till start efter", "group": "session", "type": "int", "unit": "sekunder", "default": "60",
+      "help": "Utan aktivitet laddas startsidan om." },
+    { "key": "INACTIVITY_TIMEOUT_WEB", "label": "Tillbaka från annan sida efter", "group": "session", "type": "int", "unit": "sekunder", "default": "30",
+      "help": "Utan aktivitet på en annan sida än startsidan går appen tillbaka till startsidan." },
+    { "key": "CLEAR_SESSION_ON_IDLE", "label": "Rensa inloggningar och cookies", "group": "session", "type": "bool", "default": "true",
+      "help": "När appen går tillbaka till startsidan. Låt stå på: annars kan nästa besökare komma åt den förras inloggningar." },
+    { "key": "ORIENTATION", "label": "Skärmriktning", "group": "skarm", "type": "enum", "default": "landscape", "perComputer": true,
+      "options": [{ "value": "landscape", "label": "Liggande" }, { "value": "portrait", "label": "Stående" }] },
+    { "key": "INITIAL_SCALE", "label": "Zoom", "group": "skarm", "type": "int", "unit": "procent", "default": "100" },
+    { "key": "FULLSCREEN", "label": "Helskärm", "group": "skarm", "type": "bool", "default": "true" },
+    { "key": "SPLASH", "label": "Startbild", "group": "skarm", "type": "enum", "default": "none",
+      "options": [{ "value": "none", "label": "Ingen" }, { "value": "image", "label": "Bild" }, { "value": "video", "label": "Film" }],
+      "help": "Visas när ingen använder enheten." },
+    { "key": "HEARTBEAT_INTERVAL", "label": "Statusrapport var", "group": "teknik", "type": "int", "unit": "minuter", "default": "5", "advanced": true },
+    { "key": "APP_RELEASE", "label": "Appversion", "group": "teknik", "type": "string", "default": "latest", "advanced": true,
+      "help": "latest, eller en release-tagg som v3.7.1." }
+  ]
+}
