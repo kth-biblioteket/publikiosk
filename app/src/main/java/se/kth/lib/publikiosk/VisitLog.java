@@ -14,6 +14,9 @@ import org.json.JSONObject;
  * Hem, nya inställningar …); den inaktiva tiden på slutet räknas inte. Inga adresser eller text,
  * bara tider och hur många sidor besökaren gick till.
  *
+ * Ett besök kräver minst två tryck med minst två sekunders mellanrum: ett ensamt tryck (någon
+ * nuddar skärmen i förbifarten) räknas inte. Tryck i inställningsmenyn räknas inte heller.
+ *
  * Avslutade besök köas i SharedPreferences och skickas med statusrapporten (StatusReporter), som
  * tar bort dem när publicomtools svarat visitsAck. En och samma instans för hela appen, så att ett
  * pågående besök överlever att aktiviteten skapas om.
@@ -25,6 +28,8 @@ public final class VisitLog {
     private static final String KEY_QUEUE = "queue";
     /** Utan nät i flera dagar: behåll bara de senaste */
     private static final int MAX_QUEUED = 500;
+    private static final int MIN_TAPS = 2;
+    private static final long MIN_DURATION_MS = 2_000;
 
     private static VisitLog instance;
 
@@ -32,6 +37,7 @@ public final class VisitLog {
     private long startedAt = 0;
     private long lastActivityAt = 0;
     private int pages = 0;
+    private int taps = 0;
 
     public static synchronized VisitLog get(Context context) {
         if (instance == null) instance = new VisitLog(context.getApplicationContext());
@@ -42,14 +48,34 @@ public final class VisitLog {
         prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
-    /** Ett tryck: startar ett besök om inget pågår */
-    public synchronized void activity() {
+    /**
+     * Beröring av skärmen: startar ett besök om inget pågår. newTap: ett nytt tryck (fingret ner),
+     * inte en rörelse i samma tryck.
+     */
+    public synchronized void activity(boolean newTap) {
         long now = System.currentTimeMillis();
         if (startedAt == 0) {
             startedAt = now;
             pages = 0;
+            taps = 0;
         }
+        if (newTap) taps++;
         lastActivityAt = now;
+    }
+
+    /**
+     * Inställningsmenyn öppnas (trycket i hörnet): tryck under de senaste withinMs var personal,
+     * inte en besökare. Ett besök som pågått längre behålls.
+     */
+    public synchronized void discardIfRecent(long withinMs) {
+        if (startedAt != 0 && System.currentTimeMillis() - startedAt < withinMs) reset();
+    }
+
+    private void reset() {
+        startedAt = 0;
+        lastActivityAt = 0;
+        pages = 0;
+        taps = 0;
     }
 
     /** Besökaren gick till en ny sida (inte startsidan) */
@@ -60,6 +86,11 @@ public final class VisitLog {
     /** Besöket är slut: idle, home, config, reboot eller crash */
     public synchronized void end(String reason) {
         if (startedAt == 0) return;
+        if (taps < MIN_TAPS || lastActivityAt - startedAt < MIN_DURATION_MS) {
+            Log.d(TAG, "Ignorerade " + taps + " tryck (inget besök)");
+            reset();
+            return;
+        }
         try {
             JSONArray queue = queue();
             JSONObject visit = new JSONObject();
@@ -74,9 +105,7 @@ public final class VisitLog {
         } catch (JSONException e) {
             Log.w(TAG, "Besöket kunde inte sparas", e);
         }
-        startedAt = 0;
-        lastActivityAt = 0;
-        pages = 0;
+        reset();
     }
 
     /** Besöken som väntar på att skickas (en kopia) */

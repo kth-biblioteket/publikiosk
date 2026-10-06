@@ -906,7 +906,10 @@ public class MainActivity extends AppCompatActivity {
         lastTouchAt = System.currentTimeMillis();
         lastActivityAt = lastTouchAt;
         touchedSinceStart = true;
-        VisitLog.get(this).activity();
+        // Tryck i inställningsmenyn är personal, inget besök
+        if (drawerLayout == null || !drawerLayout.isDrawerOpen(Gravity.LEFT)) {
+            VisitLog.get(this).activity(ev.getActionMasked() == MotionEvent.ACTION_DOWN);
+        }
         return super.dispatchTouchEvent(ev);
     }
 
@@ -1071,6 +1074,8 @@ public class MainActivity extends AppCompatActivity {
      * spärren är alltid tillfällig och kiosken fungerar som vanligt under tiden.
      */
     private void promptForPin() {
+        // Trycken i hörnet som öppnade menyn var personal, inte en besökare
+        VisitLog.get(this).discardIfRecent(15_000);
         long locked = pinStore.lockedForMs();
         if (locked > 0) {
             showLocked(locked);
