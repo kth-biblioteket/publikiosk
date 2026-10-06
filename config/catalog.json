@@ -40,6 +40,8 @@
       "help": "Visas när ingen använder enheten." },
     { "key": "HEARTBEAT_INTERVAL", "label": "Statusrapport var", "group": "teknik", "type": "int", "unit": "minuter", "default": "5", "advanced": true },
     { "key": "APP_RELEASE", "label": "Appversion", "group": "teknik", "type": "string", "default": "latest", "advanced": true,
-      "help": "latest, eller en release-tagg som v3.7.1." }
+      "help": "latest, eller en release-tagg som v3.7.1." },
+    { "key": "WEB_DEBUG", "label": "WebView-felsökning", "group": "teknik", "type": "bool", "default": "false", "advanced": true, "perComputer": true,
+      "help": "Tillåter chrome://inspect via USB (adb) på den här enheten, för att felsöka webbsidor. Ger åtkomst till sidorna och deras cookies: slå av efter felsökningen." }
   ]
 }

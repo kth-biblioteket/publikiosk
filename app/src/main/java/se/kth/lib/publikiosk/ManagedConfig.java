@@ -60,6 +60,7 @@ public final class ManagedConfig {
         changed |= putString(prefs, e, "appscope", values.optString("APP_SCOPE", "").trim());
         changed |= putInt(prefs, e, "idlewarning", intValue(values, "IDLE_WARNING", 10, 0, 120));
         changed |= putString(prefs, e, "language", "en".equals(values.optString("LANGUAGE", "sv")) ? "en" : "sv");
+        changed |= putBoolean(prefs, e, "webdebug", bool(values, "WEB_DEBUG", false));
 
         // Påverkar inte skärmen
         e.putInt(PREF_HEARTBEAT_INTERVAL, intValue(values, "HEARTBEAT_INTERVAL", 5, 1, 60));

@@ -140,9 +140,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Felsökning av WebView (chrome://inspect) bara i debug-byggen: på en publik enhet skulle
-        // den annars ge åtkomst till sidorna och deras cookies via USB
-        WebView.setWebContentsDebuggingEnabled((getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0);
+        applyWebDebug(getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getBoolean("webdebug", false));
 
         pinStore = new PinStore(this);
         kioskPolicy = new KioskPolicy(this);
@@ -997,7 +995,19 @@ public class MainActivity extends AppCompatActivity {
         editor.apply();
     }
 
+    /**
+     * Felsökning av WebView (chrome://inspect) i debug-byggen, och i release bara när WEB_DEBUG är
+     * påslagen för enheten i publicomtools: på en publik enhet ger den åtkomst till sidorna och
+     * deras cookies via USB.
+     */
+    private void applyWebDebug(boolean enabled) {
+        boolean debuggable = (getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;
+        WebView.setWebContentsDebuggingEnabled(debuggable || enabled);
+        if (enabled && !debuggable) Log.w("publikiosk", "WebView-felsökning påslagen (WEB_DEBUG)");
+    }
+
     private void applySettings() {
+        applyWebDebug(getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getBoolean("webdebug", false));
         urlPolicy = new UrlPolicy(savedUrl, savedAllowedHosts);
         chrome.configure(savedUrl, savedAppScope, savedNavigation, savedLanguage);
         refreshChrome(myWeb.getUrl());
