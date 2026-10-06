@@ -32,6 +32,10 @@ public class AutoUpdate {
             "https://api.github.com/repos/kth-biblioteket/publikiosk/releases/latest";
 
     private static boolean updateInProgress = false;
+    /** En kontroll pågår (nätanslutningen kan säga till flera gånger i rad) */
+    private static volatile boolean checking = false;
+    /** GitHub har svarat sedan appen startade: utan nät vid start har kontrollen inte blivit av */
+    private static volatile boolean checked = false;
 
     private final Context context;
 
@@ -41,12 +45,18 @@ public class AutoUpdate {
 
     public void checkForUpdate() {
 
-        if (updateInProgress) {
+        if (updateInProgress || checking) {
             Log.d(TAG, "Update already running");
             return;
         }
 
+        checking = true;
         new CheckVersionTask().execute();
+    }
+
+    /** Har kontrollen lyckats nå GitHub sedan appen startade? */
+    public static boolean hasChecked() {
+        return checked;
     }
 
     private class CheckVersionTask extends AsyncTask<Void, Void, Void> {
@@ -80,6 +90,7 @@ public class AutoUpdate {
 
                 JSONObject release =
                         new JSONObject(json.toString());
+                checked = true;
 
                 String latestVersion =
                         release.getString("tag_name")
@@ -137,6 +148,8 @@ public class AutoUpdate {
                 Log.e(TAG,
                         "Update failed",
                         e);
+            } finally {
+                checking = false;
             }
 
             return null;

@@ -155,6 +155,7 @@ public class MainActivity extends AppCompatActivity {
             kioskPolicy.apply();
 
             AutoUpdate updateManager = new AutoUpdate(this);
+            autoUpdate = updateManager;
             updateManager.checkForUpdate();
             TextView currentVersion = findViewById(R.id.currentVersion);
             if (currentVersion != null) {
@@ -193,6 +194,8 @@ public class MainActivity extends AppCompatActivity {
         // Sidan laddas om av sig själv när nätet kommer (t ex wifi efter en omstart)
         network = new NetworkWatcher(this, () -> {
             if (chrome.isErrorShown()) retryLoad();
+            // Saknades nätet när appen startade blev uppdateringskontrollen aldrig av: gör den nu
+            if (autoUpdate != null && !AutoUpdate.hasChecked()) autoUpdate.checkForUpdate();
         });
         network.start();
         ConstraintLayout myMain = findViewById(R.id.main);
@@ -567,6 +570,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private NetworkWatcher network;
+    /** Bara satt när appen är device owner (då uppdaterar den sig själv) */
+    private AutoUpdate autoUpdate;
     private static final long AUTO_RETRY_MS = 15_000;
     /** Medan felsidan visas: nytt försök med jämna mellanrum (nätet finns men servern svarade inte) */
     private final Runnable autoRetry = () -> {
