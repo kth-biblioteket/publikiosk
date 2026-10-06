@@ -163,8 +163,24 @@ public class KioskChrome {
 
     // --- Felsida ---
 
-    public void showError() {
+    /**
+     * Egen felsida. offline: enheten saknar nät (t ex wifi inte uppe än efter omstart); sidan
+     * laddas då om av sig själv när nätet kommer, och texten säger det.
+     */
+    public void showError(boolean offline) {
+        ((TextView) activity.findViewById(R.id.error_title)).setText(offline
+                ? (english ? "Waiting for the network…" : "Väntar på nätverket…")
+                : (english ? "The page could not be loaded" : "Sidan kunde inte laddas"));
+        ((TextView) activity.findViewById(R.id.error_text)).setText(offline
+                ? (english ? "The page loads by itself as soon as the screen is connected."
+                           : "Sidan laddas av sig själv så snart skärmen är ansluten.")
+                : (english ? "It may be a temporary network problem. Try again, or start over."
+                           : "Det kan vara ett tillfälligt nätverksfel. Försök igen, eller börja om från början."));
         errorPage.setVisibility(View.VISIBLE);
+    }
+
+    public boolean isErrorShown() {
+        return errorPage.getVisibility() == View.VISIBLE;
     }
 
     public void hideError() {
@@ -180,10 +196,6 @@ public class KioskChrome {
     private void applyTexts() {
         navBack.setText(english ? "Back" : "Tillbaka");
         navHome.setText(english ? "Home" : "Hem");
-        ((TextView) activity.findViewById(R.id.error_title)).setText(english ? "The page could not be loaded" : "Sidan kunde inte laddas");
-        ((TextView) activity.findViewById(R.id.error_text)).setText(english
-                ? "It may be a temporary network problem. Try again, or start over."
-                : "Det kan vara ett tillfälligt nätverksfel. Försök igen, eller börja om från början.");
         ((TextView) activity.findViewById(R.id.error_retry)).setText(english ? "Try again" : "Försök igen");
         ((TextView) activity.findViewById(R.id.error_home)).setText(english ? "Home" : "Hem");
         ((TextView) activity.findViewById(R.id.idle_title)).setText(english ? "Are you still there?" : "Är du kvar?");

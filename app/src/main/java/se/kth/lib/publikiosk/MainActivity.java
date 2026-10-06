@@ -182,8 +182,7 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void retry() {
-                chrome.hideError();
-                myWeb.reload();
+                retryLoad();
             }
 
             @Override
@@ -191,6 +190,11 @@ public class MainActivity extends AppCompatActivity {
                 lastActivityAt = System.currentTimeMillis();
             }
         });
+        // Sidan laddas om av sig själv när nätet kommer (t ex wifi efter en omstart)
+        network = new NetworkWatcher(this, () -> {
+            if (chrome.isErrorShown()) retryLoad();
+        });
+        network.start();
         ConstraintLayout myMain = findViewById(R.id.main);
 
         myWeb.setLayerType(View.LAYER_TYPE_HARDWARE, null);
@@ -319,7 +323,8 @@ public class MainActivity extends AppCompatActivity {
                 if (!request.isForMainFrame()) return;
                 if (UrlPolicy.sameSite(request.getUrl().toString(), savedUrl)) pageLoaded = false;
                 // Egen felsida i stället för Chromiums, med Försök igen och Hem
-                chrome.showError();
+                chrome.showError(!network.isOnline());
+                scheduleAutoRetry();
             }
 
             @Override
@@ -559,6 +564,27 @@ public class MainActivity extends AppCompatActivity {
 
     private void clearSessionIfEnabled() {
         if (savedClearSession) clearSession();
+    }
+
+    private NetworkWatcher network;
+    private static final long AUTO_RETRY_MS = 15_000;
+    /** Medan felsidan visas: nytt försök med jämna mellanrum (nätet finns men servern svarade inte) */
+    private final Runnable autoRetry = () -> {
+        if (chrome.isErrorShown()) retryLoad();
+    };
+
+    private void scheduleAutoRetry() {
+        commandHandler.removeCallbacks(autoRetry);
+        commandHandler.postDelayed(autoRetry, AUTO_RETRY_MS);
+    }
+
+    private void retryLoad() {
+        commandHandler.removeCallbacks(autoRetry);
+        chrome.hideError();
+        // Misslyckades redan första laddningen kan WebView sakna adress: börja då från startsidan
+        String url = myWeb.getUrl();
+        if (url == null || url.isEmpty() || url.startsWith("about:")) myWeb.loadUrl(savedUrl);
+        else myWeb.reload();
     }
 
     /** Visa eller dölj kiosknavigeringen för sidan som visas. */
@@ -1293,6 +1319,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         statusReporter.stop();
+        if (network != null) network.stop();
         commandHandler.removeCallbacksAndMessages(null);
         background.shutdown();
         // Timrarna får inte köra mot en aktivitet som är borta (t ex efter recreate)
