@@ -21,7 +21,7 @@
     { "key": "APP_SCOPE", "label": "Appens område", "group": "navigering", "type": "string", "advanced": true, "example": "apps.lib.kth.se/supportkiosk/",
       "help": "Vad som räknas som inne i webbappen (värd och sökväg). Tomt: startsidans värd och dess sökväg som katalog, t ex apps.lib.kth.se/applikation1/." },
     { "key": "IDLE_WARNING", "label": "Varning före tillbakagång", "group": "navigering", "type": "int", "unit": "sekunder", "default": "10",
-      "help": "Hur länge Är du kvar? visas innan appen börjar om från början. 0 stänger av varningen." },
+      "help": "Hur länge Är du kvar? visas innan appen börjar om från början. Inte på startsidan, som återställs tyst. 0 stänger av varningen." },
     { "key": "LANGUAGE", "label": "Språk i navigeringen", "group": "navigering", "type": "enum", "default": "sv",
       "options": [{ "value": "sv", "label": "Svenska" }, { "value": "en", "label": "Engelska" }],
       "help": "Knapparna Tillbaka och Hem, varningen och felsidan." },

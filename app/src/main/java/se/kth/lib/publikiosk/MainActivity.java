@@ -837,8 +837,9 @@ public class MainActivity extends AppCompatActivity {
                 // Något händer när tiden går ut: tillbaka till början, eller startbilden
                 boolean willAct = !busy && (!onStart || touchedSinceStart || savedSplashscreen);
                 long left = limit - idle;
-                // "Är du kvar?" de sista sekunderna, så att ingen förlorar det hen höll på med
-                if (willAct && savedIdleWarning > 0 && left > 0 && left <= savedIdleWarning * 1000L) {
+                // "Är du kvar?" de sista sekunderna, så att ingen förlorar det hen höll på med. Inte på
+                // startsidan: där återställs den tyst (en SPA som inte byter adress räknas hit)
+                if (willAct && !onStart && savedIdleWarning > 0 && left > 0 && left <= savedIdleWarning * 1000L) {
                     chrome.showWarning((int) Math.ceil(left / 1000.0));
                 } else if (chrome.isWarningShown()) {
                     chrome.hideWarning();
