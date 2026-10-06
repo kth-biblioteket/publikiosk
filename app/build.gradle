@@ -10,8 +10,8 @@ android {
         applicationId "se.kth.lib.publikiosk"
         minSdk 23
         targetSdk 34
-        versionCode 381
-        versionName "3.8.1"
+        versionCode 390
+        versionName "3.9.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -65,6 +65,8 @@ dependencies {
     androidTestImplementation libs.espresso.core
 
     implementation libs.security.crypto
+    // QR-koder för blockerade länkar, skapas i enheten utan nätanrop
+    implementation libs.zxing.core
 
     implementation libs.okhttp
 

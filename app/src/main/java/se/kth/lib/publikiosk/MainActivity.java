@@ -96,6 +96,12 @@ public class MainActivity extends AppCompatActivity {
     private PinStore pinStore;
     private KioskPolicy kioskPolicy;
     private PublicomClient publicomtools;
+    private KioskChrome chrome;
+    /** NAVIGATION, APP_SCOPE, IDLE_WARNING (sekunder) och LANGUAGE från inställningarna */
+    private String savedNavigation = "auto";
+    private String savedAppScope = "";
+    private int savedIdleWarning = 10;
+    private String savedLanguage = "sv";
     private StatusReporter statusReporter;
     private final java.util.concurrent.ExecutorService background = java.util.concurrent.Executors.newSingleThreadExecutor();
     /** Om startsidan laddats (null = vet inte än), till statusrapporten */
@@ -165,6 +171,28 @@ public class MainActivity extends AppCompatActivity {
         }
 
         myWeb = findViewById(R.id.myWeb);
+        chrome = new KioskChrome(this, new KioskChrome.Actions() {
+            @Override
+            public void back() {
+                if (myWeb.canGoBack()) myWeb.goBack();
+            }
+
+            @Override
+            public void home() {
+                returnToStart();
+            }
+
+            @Override
+            public void retry() {
+                chrome.hideError();
+                myWeb.reload();
+            }
+
+            @Override
+            public void keepGoing() {
+                lastActivityAt = System.currentTimeMillis();
+            }
+        });
         ConstraintLayout myMain = findViewById(R.id.main);
 
         myWeb.setLayerType(View.LAYER_TYPE_HARDWARE, null);
@@ -211,6 +239,8 @@ public class MainActivity extends AppCompatActivity {
                     keyboardOpen = open;
                     if (open) showSystemUI();
                     else applyFullscreen(savedFullscreen);
+                    // Tangentbordet behöver platsen: ramen döljs medan det är uppe
+                    refreshChrome(myWeb.getUrl());
                 }
             }
         });
@@ -253,6 +283,12 @@ public class MainActivity extends AppCompatActivity {
             public boolean onJsAlert(WebView view, String url, String message, JsResult result) {
                 return super.onJsAlert(view, url, message, result);
             }
+
+            @Override
+            public void onReceivedTitle(WebView view, String title) {
+                super.onReceivedTitle(view, title);
+                refreshChrome(view.getUrl());
+            }
         });
         myWeb.setWebViewClient(new WebViewClient() {
             //Kontrollera om användaren klickat på en navigation(länk/knapp)
@@ -282,7 +318,10 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request, android.webkit.WebResourceError error) {
                 super.onReceivedError(view, request, error);
-                if (request.isForMainFrame() && UrlPolicy.sameSite(request.getUrl().toString(), savedUrl)) pageLoaded = false;
+                if (!request.isForMainFrame()) return;
+                if (UrlPolicy.sameSite(request.getUrl().toString(), savedUrl)) pageLoaded = false;
+                // Egen felsida i stället för Chromiums, med Försök igen och Hem
+                chrome.showError();
             }
 
             @Override
@@ -302,6 +341,14 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
                 bridgeAllowed = UrlPolicy.sameSite(url, savedUrl);
+                chrome.hideError();
+            }
+
+            // Varje ny sida i historiken, även när en SPA byter sida utan att ladda om
+            @Override
+            public void doUpdateVisitedHistory(WebView view, String url, boolean isReload) {
+                super.doUpdateVisitedHistory(view, url, isReload);
+                refreshChrome(url);
             }
 
             // Skapa javascript på laddad websida(lägger till en knapp med länk tillbaks till huvudsida)
@@ -314,79 +361,12 @@ public class MainActivity extends AppCompatActivity {
                 if (awaitingStart) {
                     landedStartUrl = url;
                     awaitingStart = false;
+                    chrome.setLandedStart(url);
                 }
 
 
-                // Hantera att initiala sidan kan använda redirects
-                // Exempelvis wagnerguide.com/c/kth/kth går först till wagnerguide.com innan den slutligen hamnar på wagnerguide.com/c/kth/kth
-                if (isInitialLoading) {
-                    Log.d("publikiosk", "isInitialLoading");
-                    Log.d("publikiosk", "savedUrl: " + savedUrl);
-                    Log.d("publikiosk", "url: " + url);
-                    Log.d("publikiosk", String.valueOf(url.equals(savedUrl)));
-                    if (url.equals(savedUrl)) {
-                        isInitialLoading = false;
-                    } else {
-                        return;
-                    }
-                }
-
-                // Om det inte är den initials sidan så visa en navigationsknapp
-                if (isUserNavigation && !url.equals(savedUrl)) {
-                    Log.d("publikiosk", "extern sida");
-                    new Handler().postDelayed(() -> {
-                            String js = "javascript:(function() {" +
-                                "function getParameterByName(name, url) {" +
-                                "    if (!url) url = window.location.href;" +
-                                "    name = name.replace(/[\\[\\]]/g, '\\\\$&');" +
-                                "    var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)')," +
-                                "        results = regex.exec(url);" +
-                                "    if (!results) return null;" +
-                                "    if (!results[2]) return '';" +
-                                "    return decodeURIComponent(results[2].replace(/\\+/g, ' '));" +
-                                "}" +
-
-                                "var lang = getParameterByName('lang');" +
-
-                                "var homeText = 'Library Map';" +
-                                "if (lang === 'sv') {" +
-                                "    homeText = 'Karta över biblioteket';" +
-                                "}" +
-
-                                "var link = document.createElement('link');" +
-                                "link.rel = 'stylesheet';" +
-                                "link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css';" +
-                                "document.head.appendChild(link);" +
-                                "var nav = document.createElement('div');" +
-                                "nav.style.position = 'fixed';" +
-                                "nav.style.top = '0';" +
-                                "nav.style.left = '0';" +
-                                "nav.style.backgroundColor = 'transparent';" +
-                                "nav.style.padding = '10px';" +
-                                "nav.style.zIndex = '1000';" +
-                                "nav.style.display = 'flex';" +
-                                "nav.style.justifyContent = 'space-between';" +
-                                "nav.style.alignItems = 'center';" +
-                                "var homeButton = document.createElement('button');" +
-                                "homeButton.className = 'btn btn-sprimary';" +
-                                "homeButton.style.position = 'relative';" +
-                                "homeButton.style.color = '#ffffff';" +
-                                "homeButton.style.width = '150px';" +
-                                "homeButton.style.height = '100px';" +
-                                "homeButton.style.backgroundColor = '#d02f80';" +
-                                "homeButton.onclick = function() {" +
-                                        "window.location.href = " + JSONObject.quote(savedUrl) + ";" +
-                                "};" +
-                                "homeButton.innerHTML = '<i class=\"fas fa-location-dot\" style=\"color:#ffffff26;font-size: 70px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);\"></i><span style=\"font-size: 20px;font-weight: 700\">' + homeText +'</span>';"  +
-                                "nav.appendChild(homeButton);" +
-                                "document.body.appendChild(nav);" +
-                            "})()";
-                            view.evaluateJavascript(js, null);
-                    }, 100);
-                    isUserNavigation = false;
-                    isInitialLoading = true;
-                }
-                if (url.equals(savedUrl)) {
+                refreshChrome(url);
+                if (isStartPage(url)) {
                     if (pageLoaded == null || !pageLoaded) {
                         boolean first = pageLoaded == null;
                         pageLoaded = true;
@@ -556,7 +536,7 @@ public class MainActivity extends AppCompatActivity {
         }
         if (urlPolicy != null && !urlPolicy.allows(url)) {
             Log.w("publikiosk", "Blockerad navigering: " + url);
-            Toast.makeText(this, "Sidan kan inte öppnas här", Toast.LENGTH_SHORT).show();
+            chrome.showBlocked(url);
             return true;
         }
         isUserNavigation = true;
@@ -583,8 +563,15 @@ public class MainActivity extends AppCompatActivity {
         if (savedClearSession) clearSession();
     }
 
+    /** Visa eller dölj kiosknavigeringen för sidan som visas. */
+    private void refreshChrome(String url) {
+        if (chrome == null || myWeb == null) return;
+        chrome.update(url, myWeb.getTitle(), myWeb.canGoBack(), keyboardOpen);
+    }
+
     /** Tillbaka till startsidan efter inaktivitet: ny besökare, ny session. */
     private void returnToStart() {
+        chrome.hideAll();
         lastActivityAt = System.currentTimeMillis();
         touchedSinceStart = false;
         awaitingStart = true;
@@ -817,7 +804,7 @@ public class MainActivity extends AppCompatActivity {
 
     // --- Tillbaka till startsidan när ingen använder enheten ---
 
-    private static final long IDLE_CHECK_INTERVAL_MS = 5_000;
+    private static final long IDLE_CHECK_INTERVAL_MS = 1_000;
     /** Senaste tryck eller start av startsidan: tidsgränserna räknas härifrån */
     private long lastActivityAt = System.currentTimeMillis();
     /** Någon har rört skärmen sedan startsidan laddades (då laddas den om även om den visas) */
@@ -849,6 +836,15 @@ public class MainActivity extends AppCompatActivity {
                 boolean onStart = isStartPage(myWeb.getUrl());
                 long limit = Long.parseLong(onStart ? savedInactivityTimeout : savedInactivityTimeoutWeb);
                 boolean busy = drawerLayout.isDrawerOpen(Gravity.LEFT) || isPinDialogOpen;
+                // Något händer när tiden går ut: tillbaka till början, eller startbilden
+                boolean willAct = !busy && (!onStart || touchedSinceStart || savedSplashscreen);
+                long left = limit - idle;
+                // "Är du kvar?" de sista sekunderna, så att ingen förlorar det hen höll på med
+                if (willAct && savedIdleWarning > 0 && left > 0 && left <= savedIdleWarning * 1000L) {
+                    chrome.showWarning((int) Math.ceil(left / 1000.0));
+                } else if (chrome.isWarningShown()) {
+                    chrome.hideWarning();
+                }
                 if (!busy && idle >= limit) {
                     if (onStart && savedSplashscreen) {
                         Intent intent = new Intent(MainActivity.this, SplashActivity.class);
@@ -955,6 +951,10 @@ public class MainActivity extends AppCompatActivity {
         // så kth.se täcker t ex apps.lib.kth.se och spacefinder.lib.kth.se; startsidans värd
         // (wagnerguide.com) är alltid tillåten.
         savedAllowedHosts = sharedPreferences.getString(PREF_ALLOWED_HOSTS, DEFAULT_ALLOWED_HOSTS);
+        savedNavigation = sharedPreferences.getString("navigation", "auto");
+        savedAppScope = sharedPreferences.getString("appscope", "");
+        savedIdleWarning = sharedPreferences.getInt("idlewarning", 10);
+        savedLanguage = sharedPreferences.getString("language", "sv");
         savedClearSession = sharedPreferences.getBoolean(PREF_CLEAR_SESSION, true);
         savedInitialScale = sharedPreferences.getString(PREF_INITIAL_SCALE, "100");
         savedInactivityTimeout = sharedPreferences.getString(PREFS_INACTIVITY_TIMEOUT, "60000");
@@ -976,6 +976,7 @@ public class MainActivity extends AppCompatActivity {
         inactivitytimeoutInput.setText(savedInactivityTimeout);
         inactivitytimeoutwebInput.setText(savedInactivityTimeoutWeb);
         urlPolicy = new UrlPolicy(savedUrl, savedAllowedHosts);
+        chrome.configure(savedUrl, savedAppScope, savedNavigation, savedLanguage);
 
     }
 
@@ -998,6 +999,8 @@ public class MainActivity extends AppCompatActivity {
 
     private void applySettings() {
         urlPolicy = new UrlPolicy(savedUrl, savedAllowedHosts);
+        chrome.configure(savedUrl, savedAppScope, savedNavigation, savedLanguage);
+        refreshChrome(myWeb.getUrl());
         setInitialScale(savedInitialScale);
         setOrientation(savedOrientation);
         applyFullscreen(savedFullscreen);

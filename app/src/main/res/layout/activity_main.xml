@@ -16,22 +16,321 @@
             android:id="@+id/myWeb"
             android:layout_width="0dp"
             android:layout_height="0dp"
-            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintBottom_toTopOf="@id/nav_bar"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             />
 
+        <!-- Kiosknavigeringen: visas när besökaren har lämnat webbappen (annan webbplats eller
+             annan del av samma värd). Tillbaka och Hem; i mitten var besökaren är. -->
+        <LinearLayout
+            android:id="@+id/nav_bar"
+            android:layout_width="0dp"
+            android:layout_height="80dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@android:color/white"
+            android:elevation="4dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/nav_back"
+                android:layout_width="wrap_content"
+                android:layout_height="60dp"
+                android:minWidth="60dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:text="Tillbaka"
+                android:textAllCaps="false"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/nav_text"
+                app:backgroundTint="@android:color/white"
+                app:strokeColor="@color/nav_border"
+                app:strokeWidth="2dp"
+                app:cornerRadius="14dp"
+                app:icon="@drawable/ic_nav_back"
+                app:iconTint="@color/nav_text"
+                app:iconSize="26dp"/>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp">
+                <TextView
+                    android:id="@+id/nav_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/nav_text"/>
+                <TextView
+                    android:id="@+id/nav_host"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:maxLines="1"
+                    android:ellipsize="middle"
+                    android:textSize="14sp"
+                    android:textColor="@color/nav_muted"/>
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/nav_home"
+                android:layout_width="wrap_content"
+                android:layout_height="60dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:text="Hem"
+                android:textAllCaps="false"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@android:color/white"
+                app:backgroundTint="@color/kth_blue"
+                app:cornerRadius="14dp"
+                app:icon="@drawable/ic_nav_home"
+                app:iconTint="@android:color/white"
+                app:iconSize="26dp"/>
+        </LinearLayout>
+
+        <!-- Egen felsida när en sida inte kan laddas (i stället för Chromiums) -->
+        <LinearLayout
+            android:id="@+id/error_page"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="@android:color/white"
+            android:padding="48dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:visibility="gone"
+            app:layout_constraintBottom_toTopOf="@id/nav_bar"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+            <ImageView
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_nav_offline"/>
+            <TextView
+                android:id="@+id/error_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:gravity="center"
+                android:textSize="30sp"
+                android:textStyle="bold"
+                android:textColor="@color/kth_navy"/>
+            <TextView
+                android:id="@+id/error_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:maxWidth="560dp"
+                android:layout_marginTop="12dp"
+                android:gravity="center"
+                android:textSize="19sp"
+                android:lineSpacingMultiplier="1.3"
+                android:textColor="@color/nav_muted"/>
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:orientation="horizontal">
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/error_retry"
+                    android:layout_width="wrap_content"
+                    android:layout_height="60dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:layout_marginEnd="14dp"
+                    android:textAllCaps="false"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/kth_blue"
+                    app:backgroundTint="@android:color/white"
+                    app:strokeColor="@color/kth_blue"
+                    app:strokeWidth="2dp"
+                    app:cornerRadius="14dp"/>
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/error_home"
+                    android:layout_width="wrap_content"
+                    android:layout_height="60dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:textAllCaps="false"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@android:color/white"
+                    app:backgroundTint="@color/kth_blue"
+                    app:cornerRadius="14dp"/>
+            </LinearLayout>
+        </LinearLayout>
+
         <!-- Osynlig yta nere till höger: 5 snabba tryck öppnar menyn. Hög nog för att dess övre del
-             ska ligga ovanför navigeringsfältets yta (där systemet fångar trycken) på alla skärmar. -->
+             ska ligga ovanför navigeringsfältets yta (där systemet fångar trycken) på alla skärmar.
+             Ovanför kiosknavigeringen när den visas, så att den inte täcker Hem. -->
         <View
             android:id="@+id/trigger_area"
             android:layout_width="48dp"
             android:layout_height="96dp"
             android:background="@android:color/transparent"
-            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintBottom_toTopOf="@id/nav_bar"
             app:layout_constraintEnd_toEndOf="parent"
             android:layout_margin="0dp"/>
+
+        <!-- Varning före tillbakagång: "Är du kvar?" med nedräkning -->
+        <FrameLayout
+            android:id="@+id/idle_warning"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:background="@color/scrim"
+            android:elevation="16dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+            <LinearLayout
+                android:layout_width="560dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:orientation="vertical"
+                android:gravity="center_horizontal"
+                android:background="@drawable/kiosk_card"
+                android:padding="36dp"
+                android:accessibilityLiveRegion="polite">
+                <TextView
+                    android:id="@+id/idle_count"
+                    android:layout_width="112dp"
+                    android:layout_height="112dp"
+                    android:gravity="center"
+                    android:background="@drawable/kiosk_countdown"
+                    android:textSize="44sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/kth_navy"/>
+                <TextView
+                    android:id="@+id/idle_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="18dp"
+                    android:textSize="28sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/kth_navy"/>
+                <TextView
+                    android:id="@+id/idle_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:gravity="center"
+                    android:textSize="19sp"
+                    android:lineSpacingMultiplier="1.3"
+                    android:textColor="@color/nav_muted"/>
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/idle_continue"
+                    android:layout_width="match_parent"
+                    android:layout_height="72dp"
+                    android:layout_marginTop="22dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:textAllCaps="false"
+                    android:textSize="22sp"
+                    android:textStyle="bold"
+                    android:textColor="@android:color/white"
+                    app:backgroundTint="@color/kth_blue"
+                    app:cornerRadius="16dp"/>
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/idle_restart"
+                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="56dp"
+                    android:layout_marginTop="6dp"
+                    android:textAllCaps="false"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/kth_blue"/>
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- Blockerad länk: förklaring och QR-kod, så att besökaren kan fortsätta på sin telefon -->
+        <FrameLayout
+            android:id="@+id/blocked_sheet"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:background="@color/scrim"
+            android:elevation="16dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+            <LinearLayout
+                android:layout_width="760dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|center_horizontal"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/kiosk_sheet"
+                android:padding="36dp">
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+                    <TextView
+                        android:id="@+id/blocked_title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textSize="28sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/kth_navy"/>
+                    <TextView
+                        android:id="@+id/blocked_text"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:textSize="19sp"
+                        android:lineSpacingMultiplier="1.3"
+                        android:textColor="@color/nav_muted"/>
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/blocked_close"
+                        android:layout_width="wrap_content"
+                        android:layout_height="60dp"
+                        android:layout_marginTop="18dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:textAllCaps="false"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@android:color/white"
+                        app:backgroundTint="@color/kth_blue"
+                        app:cornerRadius="14dp"/>
+                </LinearLayout>
+                <ImageView
+                    android:id="@+id/blocked_qr"
+                    android:layout_width="220dp"
+                    android:layout_height="220dp"
+                    android:layout_marginStart="28dp"
+                    android:padding="12dp"
+                    android:background="@drawable/kiosk_qr_frame"/>
+            </LinearLayout>
+        </FrameLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <ScrollView

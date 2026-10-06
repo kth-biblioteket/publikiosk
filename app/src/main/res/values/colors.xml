@@ -7,4 +7,14 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <!-- KTH:s profil, för kiosknavigeringen -->
+    <color name="kth_blue">#FF004791</color>
+    <color name="kth_navy">#FF000061</color>
+    <color name="kth_light_blue">#FFDEF0FF</color>
+    <color name="nav_border">#FFC8D1DC</color>
+    <color name="nav_divider">#FFD6DCE4</color>
+    <color name="nav_text">#FF1A1F2B</color>
+    <color name="nav_muted">#FF4A5260</color>
+    <color name="nav_disabled">#FF9AA2AD</color>
+    <color name="scrim">#8C000028</color>
 </resources>

@@ -54,6 +54,13 @@ public final class ManagedConfig {
         changed |= putBoolean(prefs, e, "splashscreen", "image".equals(splash) || "video".equals(splash));
         changed |= putBoolean(prefs, e, "splashscreenvideo", "video".equals(splash));
 
+        String navigation = values.optString("NAVIGATION", "auto").toLowerCase(Locale.ROOT);
+        if (!navigation.equals("always") && !navigation.equals("none")) navigation = "auto";
+        changed |= putString(prefs, e, "navigation", navigation);
+        changed |= putString(prefs, e, "appscope", values.optString("APP_SCOPE", "").trim());
+        changed |= putInt(prefs, e, "idlewarning", intValue(values, "IDLE_WARNING", 10, 0, 120));
+        changed |= putString(prefs, e, "language", "en".equals(values.optString("LANGUAGE", "sv")) ? "en" : "sv");
+
         // Påverkar inte skärmen
         e.putInt(PREF_HEARTBEAT_INTERVAL, intValue(values, "HEARTBEAT_INTERVAL", 5, 1, 60));
         e.putString(PREF_APP_RELEASE, values.optString("APP_RELEASE", "latest").trim());
