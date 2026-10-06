@@ -178,7 +178,7 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void home() {
-                returnToStart();
+                returnToStart("home");
             }
 
             @Override
@@ -313,6 +313,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public boolean onRenderProcessGone(WebView view, android.webkit.RenderProcessGoneDetail detail) {
                 Log.e("publikiosk", "WebView-processen försvann (krasch: " + detail.didCrash() + "), startar om");
+                VisitLog.get(MainActivity.this).end("crash");
                 if (view.getParent() != null) ((android.view.ViewGroup) view.getParent()).removeView(view);
                 view.destroy();
                 recreate();
@@ -354,6 +355,8 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void doUpdateVisitedHistory(WebView view, String url, boolean isReload) {
                 super.doUpdateVisitedHistory(view, url, isReload);
+                // Sidor per besök, för statistiken (startsidan och omladdningar räknas inte)
+                if (!isReload && touchedSinceStart && !isStartPage(url)) VisitLog.get(MainActivity.this).page();
                 refreshChrome(url);
             }
 
@@ -598,8 +601,12 @@ public class MainActivity extends AppCompatActivity {
         chrome.update(url, myWeb.getTitle(), myWeb.canGoBack(), keyboardOpen);
     }
 
-    /** Tillbaka till startsidan efter inaktivitet: ny besökare, ny session. */
-    private void returnToStart() {
+    /**
+     * Tillbaka till startsidan: ny besökare, ny session. reason (idle, home, config) är varför
+     * besöket tog slut, för statistiken.
+     */
+    private void returnToStart(String reason) {
+        VisitLog.get(this).end(reason);
         chrome.hideAll();
         lastActivityAt = System.currentTimeMillis();
         touchedSinceStart = false;
@@ -647,6 +654,7 @@ public class MainActivity extends AppCompatActivity {
         // En omstart hämtar också inställningarna, så den vinner över reload
         if (response.optBoolean("reboot")) {
             whenIdle("reboot", () -> {
+                VisitLog.get(this).end("reboot");
                 if (!kioskPolicy.reboot()) Log.w("publikiosk", "Omstart stöds inte på enheten (kräver Android 7 och device owner)");
             });
         } else if (response.optBoolean("reload")) {
@@ -806,7 +814,7 @@ public class MainActivity extends AppCompatActivity {
                     if (changed) {
                         loadSettings();
                         applySettings();
-                        returnToStart();
+                        returnToStart("config");
                     }
                     updatePublicomtoolsUi();
                     statusReporter.sendNow();
@@ -877,13 +885,14 @@ public class MainActivity extends AppCompatActivity {
                 }
                 if (!busy && idle >= limit) {
                     if (onStart && savedSplashscreen) {
+                        VisitLog.get(MainActivity.this).end("idle");
                         Intent intent = new Intent(MainActivity.this, SplashActivity.class);
                         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
                         startActivity(intent);
                         finish();
                         return;
                     }
-                    if (!onStart || touchedSinceStart) returnToStart();
+                    if (!onStart || touchedSinceStart) returnToStart("idle");
                 }
             } catch (NumberFormatException e) {
                 Log.w("publikiosk", "Ogiltig tidsgräns för inaktivitet", e);
@@ -897,6 +906,7 @@ public class MainActivity extends AppCompatActivity {
         lastTouchAt = System.currentTimeMillis();
         lastActivityAt = lastTouchAt;
         touchedSinceStart = true;
+        VisitLog.get(this).activity();
         return super.dispatchTouchEvent(ev);
     }
 

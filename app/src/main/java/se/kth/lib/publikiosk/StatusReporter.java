@@ -13,6 +13,8 @@ import android.os.SystemClock;
 import android.util.Log;
 import android.webkit.WebView;
 
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.concurrent.ExecutorService;
@@ -80,9 +82,19 @@ public class StatusReporter {
     public void sendNow() {
         if (!client.isEnrolled()) return;
         JSONObject status = collect();
+        // Besöken som skickas nu tas bort först när publicomtools har sparat dem
+        JSONArray visits = VisitLog.get(context).pending();
+        try {
+            if (visits.length() > 0) status.put("visits", visits);
+        } catch (JSONException e) {
+            Log.w(TAG, "Besöken kunde inte läggas till", e);
+        }
         executor.execute(() -> {
             try {
                 JSONObject response = client.heartbeat(status);
+                if (response != null && visits.length() > 0 && response.optBoolean("visitsAck")) {
+                    VisitLog.get(context).acknowledge(visits.length());
+                }
                 if (response != null) handler.post(() -> state.onCommands(response));
             } catch (Exception e) {
                 Log.w(TAG, "Statusrapporten kunde inte skickas: " + e.getMessage());
