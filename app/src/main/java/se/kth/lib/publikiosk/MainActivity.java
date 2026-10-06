@@ -650,7 +650,9 @@ public class MainActivity extends AppCompatActivity {
             pinStore.unlock();
             Log.i("publikiosk", "Menyn upplåst från publicomtools");
         }
-        if (response.optBoolean("screenshot")) takeScreenshot();
+        // Skärmdumpen tas när ingen använder enheten: då har appen redan gått tillbaka till
+        // startsidan och rensat sessionen, så inget som en besökare gjort kommer med på bilden
+        if (response.optBoolean("screenshot")) whenIdle("screenshot", this::takeScreenshot);
         // En omstart hämtar också inställningarna, så den vinner över reload
         if (response.optBoolean("reboot")) {
             whenIdle("reboot", () -> {
@@ -700,7 +702,7 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * Skärmdump av appens eget fönster (inget annat på enheten), högst 1280 bildpunkter bred,
-     * som JPEG till publicomtools.
+     * som JPEG till publicomtools. Bara via whenIdle, aldrig medan någon använder enheten.
      */
     private void takeScreenshot() {
         View root = getWindow().getDecorView();
