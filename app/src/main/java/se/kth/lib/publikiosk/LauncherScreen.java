@@ -36,6 +36,7 @@ public class LauncherScreen {
     private final View headRow;
     /** Pixlar per skisspixel: förstasidan ritas som skissen (1280 bred liggande, 800 stående) och skalas till skärmen */
     private float u = 1f;
+    private boolean english = false;
 
     public LauncherScreen(Activity activity, Listener listener) {
         this.activity = activity;
@@ -74,13 +75,14 @@ public class LauncherScreen {
      * Bygger sidan. Texter som är tomma får standardtexten på besökarens språk; en egen text (från
      * LAUNCHER_TITLE, LAUNCHER_SUBTITLE) visas som den är. Tom fottext döljer raden.
      */
-    public void configure(List<KioskApps.App> apps, String customTitle, String customSubtitle,
-                          String customFooter, boolean english) {
+    public void configure(List<KioskApps.App> apps, Texts texts, boolean english) {
+        this.english = english;
         label.setText(english ? "KTH Library" : "KTH Biblioteket");
-        title.setText(!customTitle.isEmpty() ? customTitle : (english ? "What do you need?" : "Vad vill du göra?"));
-        subtitle.setText(!customSubtitle.isEmpty() ? customSubtitle : (english ? "Tap a service to begin." : "Tryck på en tjänst för att börja."));
-        footer.setText(customFooter);
-        footer.setVisibility(customFooter.isEmpty() ? View.GONE : View.VISIBLE);
+        title.setText(pick(english, texts.title, texts.titleEn, english ? "What do you need?" : "Vad vill du göra?"));
+        subtitle.setText(pick(english, texts.subtitle, texts.subtitleEn, english ? "Tap a service to begin." : "Tryck på en tjänst för att börja."));
+        String foot = pick(english, texts.footer, texts.footerEn, "");
+        footer.setText(foot);
+        footer.setVisibility(foot.isEmpty() ? View.GONE : View.VISIBLE);
         language.setText(english ? "Svenska" : "English");
 
         boolean portrait = activity.getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT;
@@ -109,6 +111,26 @@ public class LauncherScreen {
         }
     }
 
+    /** Texterna från inställningarna, svenska och engelska. Tom engelsk text: den svenska, sedan standardtexten. */
+    public static final class Texts {
+        final String title, titleEn, subtitle, subtitleEn, footer, footerEn;
+
+        public Texts(String title, String titleEn, String subtitle, String subtitleEn, String footer, String footerEn) {
+            this.title = title;
+            this.titleEn = titleEn;
+            this.subtitle = subtitle;
+            this.subtitleEn = subtitleEn;
+            this.footer = footer;
+            this.footerEn = footerEn;
+        }
+    }
+
+    private static String pick(boolean english, String sv, String en, String fallback) {
+        if (english && !en.isEmpty()) return en;
+        if (!sv.isEmpty()) return sv;
+        return fallback;
+    }
+
     private View tile(KioskApps.App app, boolean portrait) {
         LinearLayout tile = new LinearLayout(activity);
         tile.setOrientation(LinearLayout.HORIZONTAL);
@@ -117,7 +139,7 @@ public class LauncherScreen {
         tile.setPadding(px(36), 0, px(36), 0);
         tile.setClickable(true);
         tile.setFocusable(true);
-        tile.setContentDescription(app.label + (app.desc.isEmpty() ? "" : ". " + app.desc));
+        tile.setContentDescription(app.label(english) + (app.desc(english).isEmpty() ? "" : ". " + app.desc(english)));
         tile.setOnClickListener(v -> listener.open(app));
 
         FrameLayoutHolder icon = new FrameLayoutHolder(activity, KioskApps.tileIcon(app.icon), px(60));
@@ -130,15 +152,15 @@ public class LauncherScreen {
         tile.addView(text, tlp);
 
         TextView name = new TextView(activity);
-        name.setText(app.label);
+        name.setText(app.label(english));
         name.setTextColor(activity.getColor(R.color.kth_navy));
         name.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(32));
         name.setTypeface(Fonts.extraBold(activity));
         name.setMaxLines(2);
         text.addView(name);
-        if (!app.desc.isEmpty()) {
+        if (!app.desc(english).isEmpty()) {
             TextView desc = new TextView(activity);
-            desc.setText(app.desc);
+            desc.setText(app.desc(english));
             desc.setTextColor(activity.getColor(R.color.nav_muted));
             desc.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(20));
             desc.setTypeface(Fonts.regular(activity));

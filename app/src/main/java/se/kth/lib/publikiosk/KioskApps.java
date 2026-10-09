@@ -8,9 +8,11 @@ import java.util.List;
 
 /**
  * Fler webbappar på en enhet. START_URL är hem-appen; APPS listar de övriga, en per post:
- * "Namn|https://adress/|ikon|område|beskrivning". Allt utom namn och adress är valfritt. Området är
- * som APP_SCOPE (värd och sökväg); tomt betyder adressens värd och sökväg som katalog. Beskrivningen
- * visas på förstasidan (HOME_MODE=launcher). I det läget är APPS alla tjänster och START_URL används inte.
+ * "Namn|https://adress/|ikon|område|beskrivning|namn_en|beskrivning_en". Allt utom namn och adress är
+ * valfritt. Området är som APP_SCOPE (värd och sökväg); tomt betyder adressens värd och sökväg som
+ * katalog. Beskrivningen visas på förstasidan (HOME_MODE=launcher), och namn_en/beskrivning_en när
+ * besökaren valt engelska (tomma: de svenska). I förstasidesläget är APPS alla tjänster och
+ * START_URL används inte.
  */
 final class KioskApps {
 
@@ -24,13 +26,26 @@ final class KioskApps {
         final String icon;
         final KioskChrome.Scope scope;
         final String desc;
+        final String labelEn;
+        final String descEn;
 
-        App(String label, String url, String icon, KioskChrome.Scope scope, String desc) {
+        App(String label, String url, String icon, KioskChrome.Scope scope, String desc, String labelEn, String descEn) {
             this.label = label;
             this.url = url;
             this.icon = icon;
             this.scope = scope;
             this.desc = desc;
+            this.labelEn = labelEn;
+            this.descEn = descEn;
+        }
+
+        /** Namnet på besökarens språk; saknas det engelska används det svenska */
+        String label(boolean english) {
+            return english && !labelEn.isEmpty() ? labelEn : label;
+        }
+
+        String desc(boolean english) {
+            return english && !descEn.isEmpty() ? descEn : desc;
         }
     }
 
@@ -52,6 +67,8 @@ final class KioskApps {
             String icon = parts.length > 2 ? parts[2].trim() : "";
             String scopeText = parts.length > 3 ? parts[3].trim() : "";
             String desc = parts.length > 4 ? parts[4].trim() : "";
+            String labelEn = parts.length > 5 ? parts[5].trim() : "";
+            String descEn = parts.length > 6 ? parts[6].trim() : "";
             if (label.isEmpty() || !url.startsWith("https://") || Uri.parse(url).getHost() == null) {
                 Log.w(TAG, "Ogiltig post i APPS hoppas över: " + entry.trim());
                 continue;
@@ -62,7 +79,7 @@ final class KioskApps {
                 Log.w(TAG, "För många appar i APPS, " + label + " och resten hoppas över");
                 break;
             }
-            apps.add(new App(label, url, icon, scope, desc));
+            apps.add(new App(label, url, icon, scope, desc, labelEn, descEn));
         }
         return apps;
     }

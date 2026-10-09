@@ -133,7 +133,7 @@ En enhet som styrs från publicomtools kan ha fler webbappar som besökaren väx
 (`START_URL`) är hem-appen, och `APPS` listar de andra. De ställs bara in i publicomtools, inte i menyn.
 
 - **Startsidans namn** och **Startsidans ikon** (`START_LABEL`, `START_ICON`): namnet och ikonen på hem-appens knapp. Tomt namn ger *Hem*, standardikonen är ett hus.
-- **Webbappar** (`APPS`): i publicomtools redigeras de i en egen vy med ett kort per app (namn, adress, ikon och avancerat område) som du lägger till, tar bort och drar i ordning. Högst fem (sex med förstasida). Värdarna blir automatiskt tillåtna webbplatser. Under ytan sparas en app per rad som `Namn|https://adress/|ikon|område|beskrivning`, där allt utom namn och adress är valfritt. Appen läser radbrytning som avgränsare, och komma om det inte finns någon radbrytning.
+- **Webbappar** (`APPS`): i publicomtools redigeras de i en egen vy med ett kort per app (namn, adress, ikon och avancerat område) som du lägger till, tar bort och drar i ordning. Högst fem (sex med förstasida). Värdarna blir automatiskt tillåtna webbplatser. Under ytan sparas en app per rad som `Namn|https://adress/|ikon|område|beskrivning|namn_en|beskrivning_en`, där allt utom namn och adress är valfritt. Appen läser radbrytning som avgränsare, och komma om det inte finns någon radbrytning.
 - **Område** anges som i *Appens område* (värd och sökväg). Tomt betyder adressens värd och sökväg som katalog.
 - **Ikon** är något av namnen `house`, `search`, `map`, `map-pin`, `calendar`, `book-open`, `library`, `info`, `circle-help`, `printer`, `monitor`, `user`, `clock` och `graduation-cap` (Lucide). Utan ikon visas bara namnet.
 
@@ -160,8 +160,12 @@ någon app öppnas, i stället för att starta i en app:
   tar besökaren tillbaka till förstasidan (och rensar sessionen).
 - Efter inaktivitet går enheten tillbaka till förstasidan, med samma varning "Är du kvar?" som förut.
 - Rubrik, underrubrik och en valfri rad längst ner ställs in med `LAUNCHER_TITLE`, `LAUNCHER_SUBTITLE` och
-  `LAUNCHER_FOOTER`. Tomma texter får standardtext. Knappen **English** byter språk på förstasidan och
-  ramen tills enheten går tillbaka till förstasidan; egna texter byts inte.
+  `LAUNCHER_FOOTER`, och på engelska med `LAUNCHER_TITLE_EN`, `LAUNCHER_SUBTITLE_EN` och `LAUNCHER_FOOTER_EN`.
+  Tomma svenska texter får standardtext (Vad vill du göra?, Tryck på en tjänst för att börja). En tom engelsk
+  text blir den svenska texten, och finns ingen sådan, standardtexten på engelska.
+- Varje tjänst kan ha ett engelskt namn och en engelsk beskrivning. Saknas de visas de svenska.
+- Knappen **English** byter språk på förstasidan och ramen tills enheten går tillbaka till förstasidan.
+  Webbapparna själva byter inte språk.
 - Har enheten bara en tjänst hoppar den över förstasidan och öppnar den direkt. Utan tjänster beter sig
   enheten som med *En app*.
 - Texterna är satta i Figtree, KTH:s profiltypsnitt, som följer med i appen (licens: `docs/licenses/Figtree-OFL.txt`).

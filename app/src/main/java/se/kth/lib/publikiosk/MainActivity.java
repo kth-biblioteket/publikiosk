@@ -101,6 +101,7 @@ public class MainActivity extends AppCompatActivity {
     /** HOME_MODE=launcher: besökaren väljer bland tjänsterna (APPS) på förstasidan innan en app öppnas */
     private String savedHomeMode = "app";
     private String savedLauncherTitle = "", savedLauncherSubtitle = "", savedLauncherFooter = "";
+    private String savedLauncherTitleEn = "", savedLauncherSubtitleEn = "", savedLauncherFooterEn = "";
     private boolean launcherMode = false;
     private java.util.List<KioskApps.App> launcherApps = new java.util.ArrayList<>();
     private LauncherScreen launcher;
@@ -1054,6 +1055,9 @@ public class MainActivity extends AppCompatActivity {
         savedLauncherTitle = sharedPreferences.getString("launchertitle", "");
         savedLauncherSubtitle = sharedPreferences.getString("launchersubtitle", "");
         savedLauncherFooter = sharedPreferences.getString("launcherfooter", "");
+        savedLauncherTitleEn = sharedPreferences.getString("launchertitle_en", "");
+        savedLauncherSubtitleEn = sharedPreferences.getString("launchersubtitle_en", "");
+        savedLauncherFooterEn = sharedPreferences.getString("launcherfooter_en", "");
         savedStartLabel = sharedPreferences.getString("startlabel", "");
         savedStartIcon = sharedPreferences.getString("starticon", "house");
         savedIdleWarning = sharedPreferences.getInt("idlewarning", 10);
@@ -1109,7 +1113,8 @@ public class MainActivity extends AppCompatActivity {
     private void configureLauncher() {
         if (launcher == null) return;
         if (launcherMode) {
-            launcher.configure(launcherApps, savedLauncherTitle, savedLauncherSubtitle, savedLauncherFooter, uiEnglish);
+            launcher.configure(launcherApps, new LauncherScreen.Texts(savedLauncherTitle, savedLauncherTitleEn,
+                    savedLauncherSubtitle, savedLauncherSubtitleEn, savedLauncherFooter, savedLauncherFooterEn), uiEnglish);
         } else if (launcher.isShown()) {
             launcher.hide();
             chrome.setLauncherVisible(false);

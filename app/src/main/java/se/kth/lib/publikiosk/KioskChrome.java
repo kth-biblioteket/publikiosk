@@ -202,7 +202,7 @@ public class KioskChrome {
 
     private void labelAppButtons() {
         for (int i = 0; i < appButtons.size(); i++) {
-            String label = i == 0 ? (homeLabel.isEmpty() ? (english ? "Home" : "Hem") : homeLabel) : apps.get(i - 1).label;
+            String label = i == 0 ? (homeLabel.isEmpty() ? (english ? "Home" : "Hem") : homeLabel) : apps.get(i - 1).label(english);
             appButtons.get(i).setText(label);
             appButtons.get(i).setContentDescription(label);
         }
@@ -257,7 +257,7 @@ public class KioskChrome {
             String host = u == null || u.getHost() == null ? "" : u.getHost();
             boolean noTitle = title == null || title.trim().isEmpty() || title.startsWith("http")
                     || errorPage.getVisibility() == View.VISIBLE;
-            navTitle.setText(app != null ? app.label : (noTitle ? host : title.trim()));
+            navTitle.setText(app != null ? app.label(english) : (noTitle ? host : title.trim()));
             navHost.setText(host);
             navBack.setEnabled(canGoBack);
             navBack.setAlpha(canGoBack ? 1f : 0.45f);

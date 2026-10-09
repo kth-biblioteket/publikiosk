@@ -60,6 +60,9 @@ public final class ManagedConfig {
         changed |= putString(prefs, e, "launchertitle", values.optString("LAUNCHER_TITLE", "").trim());
         changed |= putString(prefs, e, "launchersubtitle", values.optString("LAUNCHER_SUBTITLE", "").trim());
         changed |= putString(prefs, e, "launcherfooter", values.optString("LAUNCHER_FOOTER", "").trim());
+        changed |= putString(prefs, e, "launchertitle_en", values.optString("LAUNCHER_TITLE_EN", "").trim());
+        changed |= putString(prefs, e, "launchersubtitle_en", values.optString("LAUNCHER_SUBTITLE_EN", "").trim());
+        changed |= putString(prefs, e, "launcherfooter_en", values.optString("LAUNCHER_FOOTER_EN", "").trim());
         changed |= putString(prefs, e, "apps", values.optString("APPS", "").trim());
         changed |= putString(prefs, e, "startlabel", values.optString("START_LABEL", "").trim());
         String startIcon = values.optString("START_ICON", "house").trim();
