@@ -85,6 +85,11 @@ public class KioskChrome {
         navTitle = activity.findViewById(R.id.nav_title);
         navHost = activity.findViewById(R.id.nav_host);
 
+        android.graphics.Typeface bold = Fonts.bold(activity);
+        navBack.setTypeface(bold);
+        navHome.setTypeface(bold);
+        navTitle.setTypeface(bold);
+        navHost.setTypeface(Fonts.regular(activity));
         navBack.setOnClickListener(v -> actions.back());
         navHome.setOnClickListener(v -> actions.home());
         activity.findViewById(R.id.error_retry).setOnClickListener(v -> actions.retry());
@@ -175,7 +180,7 @@ public class KioskChrome {
             b.setSingleLine(true);
             b.setEllipsize(android.text.TextUtils.TruncateAt.END);
             b.setTextSize(18);
-            b.setTypeface(b.getTypeface(), android.graphics.Typeface.BOLD);
+            b.setTypeface(Fonts.bold(activity));
             b.setInsetTop(0);
             b.setInsetBottom(0);
             b.setCornerRadius(dp(14));

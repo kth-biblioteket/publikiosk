@@ -2,7 +2,6 @@ package se.kth.lib.publikiosk;
 
 import android.app.Activity;
 import android.content.res.Configuration;
-import android.graphics.Typeface;
 import android.util.TypedValue;
 import android.widget.FrameLayout;
 import android.view.Gravity;
@@ -51,6 +50,11 @@ public class LauncherScreen {
         pattern = activity.findViewById(R.id.launcher_pattern);
         logo = activity.findViewById(R.id.launcher_logo);
         headRow = activity.findViewById(R.id.launcher_head_row);
+        label.setTypeface(Fonts.bold(activity));
+        title.setTypeface(Fonts.extraBold(activity));
+        subtitle.setTypeface(Fonts.regular(activity));
+        footer.setTypeface(Fonts.regular(activity));
+        language.setTypeface(Fonts.bold(activity));
         language.setOnClickListener(v -> listener.toggleLanguage());
     }
 
@@ -129,7 +133,7 @@ public class LauncherScreen {
         name.setText(app.label);
         name.setTextColor(activity.getColor(R.color.kth_navy));
         name.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(32));
-        name.setTypeface(name.getTypeface(), Typeface.BOLD);
+        name.setTypeface(Fonts.extraBold(activity));
         name.setMaxLines(2);
         text.addView(name);
         if (!app.desc.isEmpty()) {
@@ -137,6 +141,7 @@ public class LauncherScreen {
             desc.setText(app.desc);
             desc.setTextColor(activity.getColor(R.color.nav_muted));
             desc.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(20));
+            desc.setTypeface(Fonts.regular(activity));
             desc.setMaxLines(3);
             LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             dlp.topMargin = px(8);

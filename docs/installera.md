@@ -164,6 +164,7 @@ någon app öppnas, i stället för att starta i en app:
   ramen tills enheten går tillbaka till förstasidan; egna texter byts inte.
 - Har enheten bara en tjänst hoppar den över förstasidan och öppnar den direkt. Utan tjänster beter sig
   enheten som med *En app*.
+- Texterna är satta i Figtree, KTH:s profiltypsnitt, som följer med i appen (licens: `docs/licenses/Figtree-OFL.txt`).
 - Det finns ingen startbild längre (`SPLASH` är borttagen): förstasidan är det som visas när ingen använder enheten.
 
 ## 8. Stäng av USB-felsökning
