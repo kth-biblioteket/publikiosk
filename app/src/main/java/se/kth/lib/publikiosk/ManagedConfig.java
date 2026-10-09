@@ -50,9 +50,6 @@ public final class ManagedConfig {
         changed |= putInt(prefs, e, "orientation", "portrait".equals(orientation) ? 0 : 1);
         changed |= putString(prefs, e, "initialscale", String.valueOf(intValue(values, "INITIAL_SCALE", 100, 10, 500)));
         changed |= putBoolean(prefs, e, "fullscreen", bool(values, "FULLSCREEN", true));
-        String splash = values.optString("SPLASH", "none").toLowerCase(Locale.ROOT);
-        changed |= putBoolean(prefs, e, "splashscreen", "image".equals(splash) || "video".equals(splash));
-        changed |= putBoolean(prefs, e, "splashscreenvideo", "video".equals(splash));
 
         String navigation = values.optString("NAVIGATION", "auto").toLowerCase(Locale.ROOT);
         if (!navigation.equals("always") && !navigation.equals("none")) navigation = "auto";

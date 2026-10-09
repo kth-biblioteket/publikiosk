@@ -557,20 +557,6 @@
                 android:text="Enable Full Screen"
                 android:layout_marginBottom="20dp"/>
 
-            <CheckBox
-                android:id="@+id/splashscreen_checkbox"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Aktivera Splash Screen"
-                android:layout_marginBottom="20dp"/>
-
-            <CheckBox
-                android:id="@+id/splashscreenvideo_checkbox"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Enable Splash Screen Video"
-                android:layout_marginBottom="20dp"/>
-
             <!-- Save Button -->
             <Button
                 android:id="@+id/save_button"

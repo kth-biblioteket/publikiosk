@@ -70,8 +70,6 @@ public class MainActivity extends AppCompatActivity {
     private EditText inactivitytimeoutwebInput;
     private Spinner orientationSpinner;
     private CheckBox fullscreenCheckbox;
-    private CheckBox splashscreenCheckbox;
-    private CheckBox splashscreenvideoCheckbox;
 
     private Handler inactivityHandler;
 
@@ -86,8 +84,6 @@ public class MainActivity extends AppCompatActivity {
     private static final String PREF_INITIAL_SCALE = "initialscale";
     private static final String PREF_ORIENTATION = "orientation";
     private static final String PREF_FULLSCREEN = "fullscreen";
-    private static final String PREF_SPLASHSCREEN = "splashscreen";
-    private static final String PREF_SPLASHSCREENVIDEO = "splashscreenvideo";
     private static final String PREF_URL = "url";
 
     private String savedAllowedHosts;
@@ -116,8 +112,6 @@ public class MainActivity extends AppCompatActivity {
     private int savedOrientation;
     private String savedInitialScale;
     private boolean savedFullscreen;
-    private boolean savedSplashscreen;
-    private boolean savedSplashscreenvideo;
     private String savedUrl;
     private String savedInactivityTimeout;
     private String savedInactivityTimeoutWeb;
@@ -218,8 +212,6 @@ public class MainActivity extends AppCompatActivity {
         urlInput = findViewById(R.id.url_input);
         orientationSpinner = findViewById(R.id.orientation_spinner);
         fullscreenCheckbox = findViewById(R.id.fullscreen_checkbox);
-        splashscreenCheckbox = findViewById(R.id.splashscreen_checkbox);
-        splashscreenvideoCheckbox = findViewById(R.id.splashscreenvideo_checkbox);
         allowedHostsInput = findViewById(R.id.allowedhosts_input);
         clearSessionCheckbox = findViewById(R.id.clearsession_checkbox);
         Button changePinButton = findViewById(R.id.changePinButton);
@@ -498,14 +490,6 @@ public class MainActivity extends AppCompatActivity {
 
         fullscreenCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> {
             savedFullscreen = isChecked;
-        });
-
-        splashscreenCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            savedSplashscreen = isChecked;
-        });
-
-        splashscreenvideoCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            savedSplashscreenvideo = isChecked;
         });
 
         urlInput.setOnFocusChangeListener((v, hasFocus) -> {
@@ -826,7 +810,7 @@ public class MainActivity extends AppCompatActivity {
         boolean managed = enrolled && ManagedConfig.isManaged(this);
         findViewById(R.id.managed_note).setVisibility(managed ? View.VISIBLE : View.GONE);
         for (View field : new View[]{urlInput, allowedHostsInput, clearSessionCheckbox, initialscaleInput, inactivitytimeoutInput,
-                inactivitytimeoutwebInput, orientationSpinner, fullscreenCheckbox, splashscreenCheckbox, splashscreenvideoCheckbox}) {
+                inactivitytimeoutwebInput, orientationSpinner, fullscreenCheckbox}) {
             field.setEnabled(!managed);
         }
         findViewById(R.id.save_button).setVisibility(managed ? View.GONE : View.VISIBLE);
@@ -905,8 +889,8 @@ public class MainActivity extends AppCompatActivity {
                 boolean onStart = isStartPage(myWeb.getUrl());
                 long limit = Long.parseLong(onStart ? savedInactivityTimeout : savedInactivityTimeoutWeb);
                 boolean busy = drawerLayout.isDrawerOpen(Gravity.LEFT) || isPinDialogOpen;
-                // Något händer när tiden går ut: tillbaka till början, eller startbilden
-                boolean willAct = !busy && (!onStart || touchedSinceStart || savedSplashscreen);
+                // Något händer när tiden går ut: tillbaka till början
+                boolean willAct = !busy && (!onStart || touchedSinceStart);
                 long left = limit - idle;
                 // "Är du kvar?" de sista sekunderna, så att ingen förlorar det hen höll på med. Inte på
                 // startsidan: där återställs den tyst (en SPA som inte byter adress räknas hit)
@@ -916,14 +900,6 @@ public class MainActivity extends AppCompatActivity {
                     chrome.hideWarning();
                 }
                 if (!busy && idle >= limit) {
-                    if (onStart && savedSplashscreen) {
-                        VisitLog.get(MainActivity.this).end("idle");
-                        Intent intent = new Intent(MainActivity.this, SplashActivity.class);
-                        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-                        startActivity(intent);
-                        finish();
-                        return;
-                    }
                     if (!onStart || touchedSinceStart) returnToStart("idle");
                 }
             } catch (NumberFormatException e) {
@@ -1039,14 +1015,10 @@ public class MainActivity extends AppCompatActivity {
         savedInactivityTimeoutWeb = sharedPreferences.getString(PREFS_INACTIVITY_TIMEOUT_WEB, "30000");
         savedOrientation = sharedPreferences.getInt(PREF_ORIENTATION, 1);
         savedFullscreen = sharedPreferences.getBoolean(PREF_FULLSCREEN, true);
-        savedSplashscreen = sharedPreferences.getBoolean(PREF_SPLASHSCREEN, false);
-        savedSplashscreenvideo = sharedPreferences.getBoolean(PREF_SPLASHSCREENVIDEO, false);
         savedUrl = sharedPreferences.getString(PREF_URL, "https://wagnerguide.com/c/kth/kth");
 
         orientationSpinner.setSelection(savedOrientation);
         fullscreenCheckbox.setChecked(savedFullscreen);
-        splashscreenCheckbox.setChecked(savedSplashscreen);
-        splashscreenvideoCheckbox.setChecked(savedSplashscreenvideo);
         urlInput.setText(savedUrl);
         allowedHostsInput.setText(savedAllowedHosts);
         clearSessionCheckbox.setChecked(savedClearSession);
@@ -1079,8 +1051,6 @@ public class MainActivity extends AppCompatActivity {
         editor.putString(PREFS_INACTIVITY_TIMEOUT_WEB, savedInactivityTimeoutWeb);
         editor.putInt(PREF_ORIENTATION, savedOrientation);
         editor.putBoolean(PREF_FULLSCREEN, savedFullscreen);
-        editor.putBoolean(PREF_SPLASHSCREEN, savedSplashscreen);
-        editor.putBoolean(PREF_SPLASHSCREENVIDEO, savedSplashscreenvideo);
         editor.putString(PREF_URL, savedUrl);
         editor.apply();
     }

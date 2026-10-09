@@ -25,7 +25,7 @@ public class KioskApp extends Application {
         Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
             Log.e("KioskApp", "Appen kraschade, startar om kiosken", error);
             try {
-                Intent restart = new Intent(this, SplashActivity.class)
+                Intent restart = new Intent(this, MainActivity.class)
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                 PendingIntent pending = PendingIntent.getActivity(this, 0, restart,
                         PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_CANCEL_CURRENT);
