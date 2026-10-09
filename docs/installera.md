@@ -127,6 +127,28 @@ Fel PIN 5 gånger spärrar menyn i 1 minut, sedan längre, högst 15 minuter. Ki
 tiden. En glömd PIN går i dag inte att återställa; då återstår fabriksåterställning (steg 1). Upplåsning från
 publicomtools kommer när enheterna ansluts dit.
 
+### Flera webbappar på en enhet
+
+En enhet som styrs från publicomtools kan ha fler webbappar som besökaren växlar mellan. Startsidan
+(`START_URL`) är hem-appen, och `APPS` listar de andra. De ställs bara in i publicomtools, inte i menyn.
+
+- **Startsidans namn** och **Startsidans ikon** (`START_LABEL`, `START_ICON`): namnet och ikonen på hem-appens knapp. Tomt namn ger *Hem*, standardikonen är ett hus.
+- **Fler webbappar** (`APPS`): en post per app, `Namn|https://adress/|ikon|område`. Ikon och område är valfria. Högst fem, och namn och adresser får inte innehålla komma. Värdarna blir automatiskt tillåtna webbplatser.
+- **Område** anges som i *Appens område* (värd och sökväg). Tomt betyder adressens värd och sökväg som katalog.
+- **Ikon** är något av namnen `house`, `search`, `map`, `map-pin`, `calendar`, `book-open`, `library`, `info`, `circle-help`, `printer`, `monitor`, `user`, `clock` och `graduation-cap` (Lucide). Utan ikon visas bara namnet.
+
+Exempel:
+
+```
+Sök böcker|https://www.kth.se/biblioteket|search
+Karta|https://wagnerguide.com/c/kth/kth|map
+```
+
+Med fler appar visas ramen alltid, med Tillbaka och en knapp per app, där den aktiva är markerad. Ett tryck på
+en app ger en ny start i den: dess startsida, utan historik. Hem-appens knapp gör som Hem förut och rensar
+sessionen. Utan `APPS` beter sig enheten som förut: ramen visas bara utanför appen. Ingen ram visas om
+*Kiosknavigering* är *Aldrig* (skyltar).
+
 ## 8. Stäng av USB-felsökning
 
 När allt fungerar: välj **Lämna kioskläge**, gå till Utvecklaralternativ och stäng av **USB-felsökning**.

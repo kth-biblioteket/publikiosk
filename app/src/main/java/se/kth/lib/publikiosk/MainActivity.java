@@ -100,6 +100,10 @@ public class MainActivity extends AppCompatActivity {
     /** NAVIGATION, APP_SCOPE, IDLE_WARNING (sekunder) och LANGUAGE från inställningarna */
     private String savedNavigation = "auto";
     private String savedAppScope = "";
+    /** APPS, START_LABEL och START_ICON: fler webbappar på enheten, med hem-appen (START_URL) först */
+    private String savedApps = "";
+    private String savedStartLabel = "";
+    private String savedStartIcon = "house";
     private int savedIdleWarning = 10;
     private String savedLanguage = "sv";
     private StatusReporter statusReporter;
@@ -179,6 +183,11 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void home() {
                 returnToStart("home");
+            }
+
+            @Override
+            public void openApp(String url) {
+                openAppUrl(url);
             }
 
             @Override
@@ -614,7 +623,28 @@ public class MainActivity extends AppCompatActivity {
         clearSessionIfEnabled();
         myWeb.loadUrl(savedUrl);
         // clearHistory gäller först när nästa sida laddats
-        myWeb.postDelayed(() -> myWeb.clearHistory(), 1000);
+        clearHistorySoon();
+    }
+
+    /** Rensar historiken efter att sidan börjat laddas, och visar sedan Tillbaka som avstängd i ramen */
+    private void clearHistorySoon() {
+        myWeb.postDelayed(() -> {
+            myWeb.clearHistory();
+            refreshChrome(myWeb.getUrl());
+        }, 1000);
+        myWeb.postDelayed(() -> refreshChrome(myWeb.getUrl()), 3000);
+    }
+
+    /**
+     * Ny start i en annan app (från appväljaren): dess startsida, utan historik. Besöket pågår och
+     * sessionen rensas inte, det görs vid inaktivitet och med Hem.
+     */
+    private void openAppUrl(String url) {
+        chrome.hideAll();
+        lastActivityAt = System.currentTimeMillis();
+        myWeb.loadUrl(url);
+        // clearHistory gäller först när nästa sida laddats
+        clearHistorySoon();
     }
 
     // --- Kommandon från publicomtools (svaret på statusrapporten) ---
@@ -998,6 +1028,9 @@ public class MainActivity extends AppCompatActivity {
         savedAllowedHosts = sharedPreferences.getString(PREF_ALLOWED_HOSTS, DEFAULT_ALLOWED_HOSTS);
         savedNavigation = sharedPreferences.getString("navigation", "auto");
         savedAppScope = sharedPreferences.getString("appscope", "");
+        savedApps = sharedPreferences.getString("apps", "");
+        savedStartLabel = sharedPreferences.getString("startlabel", "");
+        savedStartIcon = sharedPreferences.getString("starticon", "house");
         savedIdleWarning = sharedPreferences.getInt("idlewarning", 10);
         savedLanguage = sharedPreferences.getString("language", "sv");
         savedClearSession = sharedPreferences.getBoolean(PREF_CLEAR_SESSION, true);
@@ -1020,9 +1053,19 @@ public class MainActivity extends AppCompatActivity {
         initialscaleInput.setText(savedInitialScale);
         inactivitytimeoutInput.setText(savedInactivityTimeout);
         inactivitytimeoutwebInput.setText(savedInactivityTimeoutWeb);
-        urlPolicy = new UrlPolicy(savedUrl, savedAllowedHosts);
-        chrome.configure(savedUrl, savedAppScope, savedNavigation, savedLanguage);
+        urlPolicy = newUrlPolicy();
+        configureChrome();
 
+    }
+
+    /** Tillåtna webbplatser, och värdarna som de andra apparna ligger på */
+    private UrlPolicy newUrlPolicy() {
+        return new UrlPolicy(savedUrl, savedAllowedHosts + KioskApps.hosts(KioskApps.parse(savedApps)));
+    }
+
+    private void configureChrome() {
+        chrome.configure(savedUrl, savedAppScope, savedNavigation, savedLanguage,
+                savedStartLabel, savedStartIcon, savedApps);
     }
 
     private void saveSettings() {
@@ -1055,8 +1098,8 @@ public class MainActivity extends AppCompatActivity {
 
     private void applySettings() {
         applyWebDebug(getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getBoolean("webdebug", false));
-        urlPolicy = new UrlPolicy(savedUrl, savedAllowedHosts);
-        chrome.configure(savedUrl, savedAppScope, savedNavigation, savedLanguage);
+        urlPolicy = newUrlPolicy();
+        configureChrome();
         refreshChrome(myWeb.getUrl());
         setInitialScale(savedInitialScale);
         setOrientation(savedOrientation);

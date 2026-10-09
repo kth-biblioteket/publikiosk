@@ -1,14 +1,18 @@
 package se.kth.lib.publikiosk;
 
 import android.app.Activity;
+import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.net.Uri;
 import android.util.Log;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import com.google.android.material.button.MaterialButton;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.EncodeHintType;
 import com.google.zxing.common.BitMatrix;
@@ -36,6 +40,9 @@ public class KioskChrome {
 
         void home();
 
+        /** En annan app än hem-appen: ny start på dess startsida */
+        void openApp(String url);
+
         void retry();
 
         void keepGoing();
@@ -44,6 +51,15 @@ public class KioskChrome {
     private final Activity activity;
     private final View navBar, errorPage, idleWarning, blockedSheet;
     private final TextView navBack, navHome, navTitle, navHost;
+    private final LinearLayout navApps;
+    private final View navInfo;
+    private final Actions actions;
+
+    /** Flera appar: hem-appen (index 0) och de övriga. Tom lista = en app, som förut. */
+    private java.util.List<KioskApps.App> apps = new java.util.ArrayList<>();
+    private String homeLabel = "";
+    private String homeIcon = "house";
+    private final java.util.List<MaterialButton> appButtons = new java.util.ArrayList<>();
 
     private Scope scope = new Scope(null, "/");
     private Scope landedScope = null;
@@ -53,6 +69,9 @@ public class KioskChrome {
 
     public KioskChrome(Activity activity, Actions actions) {
         this.activity = activity;
+        this.actions = actions;
+        navApps = activity.findViewById(R.id.nav_apps);
+        navInfo = activity.findViewById(R.id.nav_info);
         navBar = activity.findViewById(R.id.nav_bar);
         errorPage = activity.findViewById(R.id.error_page);
         idleWarning = activity.findViewById(R.id.idle_warning);
@@ -75,14 +94,104 @@ public class KioskChrome {
         applyTexts();
     }
 
-    /** Från inställningarna: startadress, ev. APP_SCOPE, NAVIGATION och LANGUAGE. */
-    public void configure(String startUrl, String appScope, String navigation, String language) {
+    /**
+     * Från inställningarna: startadress, ev. APP_SCOPE, NAVIGATION och LANGUAGE, samt hem-appens
+     * namn och ikon och övriga appar (APPS) när enheten har flera.
+     */
+    public void configure(String startUrl, String appScope, String navigation, String language,
+                          String startLabel, String startIcon, String appsRaw) {
         Scope explicit = Scope.parse(appScope);
         scope = explicit != null ? explicit : Scope.fromStartUrl(startUrl);
         landedScope = null;
         mode = navigation == null || navigation.isEmpty() ? "auto" : navigation;
         english = "en".equals(language);
+        apps = KioskApps.parse(appsRaw);
+        homeLabel = startLabel == null ? "" : startLabel.trim();
+        homeIcon = startIcon == null || startIcon.trim().isEmpty() ? "house" : startIcon.trim();
+        buildAppButtons();
         applyTexts();
+    }
+
+    /** Fler än en app: ramen visar en knapp per app i stället för sidans titel */
+    public boolean hasApps() {
+        return !apps.isEmpty();
+    }
+
+    /** Hem-appen eller en annan app som sidan hör till, annars -1 (en sida utanför apparna) */
+    private int activeApp(String url) {
+        if (insideApp(url)) return 0;
+        for (int i = 0; i < apps.size(); i++) {
+            if (apps.get(i).scope.contains(url)) return i + 1;
+        }
+        return -1;
+    }
+
+    private void buildAppButtons() {
+        navApps.removeAllViews();
+        appButtons.clear();
+        if (apps.isEmpty()) return;
+        int total = apps.size() + 1;
+        for (int i = 0; i < total; i++) {
+            final int index = i;
+            MaterialButton b = new MaterialButton(activity);
+            String icon = i == 0 ? homeIcon : apps.get(i - 1).icon;
+            int res = KioskApps.icon(icon);
+            if (res != 0) {
+                b.setIconResource(res);
+                b.setIconSize(dp(26));
+                b.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_START);
+                b.setIconPadding(dp(8));
+            }
+            b.setAllCaps(false);
+            b.setSingleLine(true);
+            b.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            b.setTextSize(18);
+            b.setTypeface(b.getTypeface(), android.graphics.Typeface.BOLD);
+            b.setInsetTop(0);
+            b.setInsetBottom(0);
+            b.setCornerRadius(dp(14));
+            b.setStrokeWidth(dp(2));
+            b.setPadding(dp(8), 0, dp(8), 0);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(60), 1f);
+            if (i > 0) lp.setMarginStart(dp(10));
+            b.setLayoutParams(lp);
+            b.setOnClickListener(v -> {
+                if (index == 0) actions.home();
+                else actions.openApp(apps.get(index - 1).url);
+            });
+            navApps.addView(b);
+            appButtons.add(b);
+        }
+        labelAppButtons();
+        markActive(-1);
+    }
+
+    private void labelAppButtons() {
+        for (int i = 0; i < appButtons.size(); i++) {
+            String label = i == 0 ? (homeLabel.isEmpty() ? (english ? "Home" : "Hem") : homeLabel) : apps.get(i - 1).label;
+            appButtons.get(i).setText(label);
+            appButtons.get(i).setContentDescription(label);
+        }
+    }
+
+    /** Den aktiva appen är blåfylld, de andra vita med ram */
+    private void markActive(int active) {
+        int blue = activity.getColor(R.color.kth_blue);
+        int text = activity.getColor(R.color.nav_text);
+        int border = activity.getColor(R.color.nav_border);
+        for (int i = 0; i < appButtons.size(); i++) {
+            MaterialButton b = appButtons.get(i);
+            boolean on = i == active;
+            b.setBackgroundTintList(ColorStateList.valueOf(on ? blue : Color.WHITE));
+            b.setStrokeColor(ColorStateList.valueOf(on ? blue : border));
+            b.setTextColor(on ? Color.WHITE : text);
+            b.setIconTint(ColorStateList.valueOf(on ? Color.WHITE : text));
+            b.setSelected(on);
+        }
+    }
+
+    private int dp(int v) {
+        return Math.round(v * activity.getResources().getDisplayMetrics().density);
     }
 
     /**
@@ -101,9 +210,20 @@ public class KioskChrome {
 
     /** Visa eller dölj ramen för den sida som visas nu. */
     public void update(String url, String title, boolean canGoBack, boolean keyboardOpen) {
-        boolean show = !keyboardOpen && !"none".equals(mode) && ("always".equals(mode) || !insideApp(url));
+        boolean show = !keyboardOpen && !"none".equals(mode)
+                && (hasApps() || "always".equals(mode) || !insideApp(url));
         navBar.setVisibility(show ? View.VISIBLE : View.GONE);
         if (!show) return;
+        boolean multi = hasApps();
+        navApps.setVisibility(multi ? View.VISIBLE : View.GONE);
+        navInfo.setVisibility(multi ? View.GONE : View.VISIBLE);
+        navHome.setVisibility(multi ? View.GONE : View.VISIBLE);
+        if (multi) {
+            markActive(activeApp(url));
+            navBack.setEnabled(canGoBack);
+            navBack.setAlpha(canGoBack ? 1f : 0.45f);
+            return;
+        }
         Uri uri = url == null ? null : Uri.parse(url);
         String host = uri == null || uri.getHost() == null ? "" : uri.getHost();
         String path = uri == null || uri.getPath() == null ? "" : uri.getPath();
@@ -196,6 +316,7 @@ public class KioskChrome {
     private void applyTexts() {
         navBack.setText(english ? "Back" : "Tillbaka");
         navHome.setText(english ? "Home" : "Hem");
+        labelAppButtons();
         ((TextView) activity.findViewById(R.id.error_retry)).setText(english ? "Try again" : "Försök igen");
         ((TextView) activity.findViewById(R.id.error_home)).setText(english ? "Home" : "Hem");
         ((TextView) activity.findViewById(R.id.idle_title)).setText(english ? "Are you still there?" : "Är du kvar?");

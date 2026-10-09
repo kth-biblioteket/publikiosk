@@ -55,11 +55,23 @@
                 app:strokeColor="@color/nav_border"
                 app:strokeWidth="2dp"
                 app:cornerRadius="14dp"
-                app:icon="@drawable/ic_nav_back"
+                app:icon="@drawable/ic_lucide_chevron_left"
                 app:iconTint="@color/nav_text"
                 app:iconSize="26dp"/>
 
+            <!-- Flera appar: en knapp per app (byggs i KioskChrome), hem-appen först -->
             <LinearLayout
+                android:id="@+id/nav_apps"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="12dp"
+                android:visibility="gone"/>
+
+            <LinearLayout
+                android:id="@+id/nav_info"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -99,7 +111,7 @@
                 android:textColor="@android:color/white"
                 app:backgroundTint="@color/kth_blue"
                 app:cornerRadius="14dp"
-                app:icon="@drawable/ic_nav_home"
+                app:icon="@drawable/ic_lucide_house"
                 app:iconTint="@android:color/white"
                 app:iconSize="26dp"/>
         </LinearLayout>
@@ -124,7 +136,8 @@
                 android:layout_width="72dp"
                 android:layout_height="72dp"
                 android:importantForAccessibility="no"
-                android:src="@drawable/ic_nav_offline"/>
+                android:src="@drawable/ic_lucide_wifi_off"
+                android:tint="@color/kth_blue"/>
             <TextView
                 android:id="@+id/error_title"
                 android:layout_width="wrap_content"
