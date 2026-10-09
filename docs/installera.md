@@ -133,7 +133,7 @@ En enhet som styrs från publicomtools kan ha fler webbappar som besökaren väx
 (`START_URL`) är hem-appen, och `APPS` listar de andra. De ställs bara in i publicomtools, inte i menyn.
 
 - **Startsidans namn** och **Startsidans ikon** (`START_LABEL`, `START_ICON`): namnet och ikonen på hem-appens knapp. Tomt namn ger *Hem*, standardikonen är ett hus.
-- **Fler webbappar** (`APPS`): en post per app, `Namn|https://adress/|ikon|område`. Ikon och område är valfria. Högst fem, och namn och adresser får inte innehålla komma. Värdarna blir automatiskt tillåtna webbplatser.
+- **Webbappar** (`APPS`): i publicomtools redigeras de i en egen vy med ett kort per app (namn, adress, ikon och avancerat område) som du lägger till, tar bort och drar i ordning. Högst fem. Värdarna blir automatiskt tillåtna webbplatser. Under ytan sparas en app per rad som `Namn|https://adress/|ikon|område`, där ikon och område är valfria, och appen läser både radbrytning och komma som avgränsare.
 - **Område** anges som i *Appens område* (värd och sökväg). Tomt betyder adressens värd och sökväg som katalog.
 - **Ikon** är något av namnen `house`, `search`, `map`, `map-pin`, `calendar`, `book-open`, `library`, `info`, `circle-help`, `printer`, `monitor`, `user`, `clock` och `graduation-cap` (Lucide). Utan ikon visas bara namnet.
 
