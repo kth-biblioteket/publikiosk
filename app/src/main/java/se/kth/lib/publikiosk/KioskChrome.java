@@ -60,6 +60,10 @@ public class KioskChrome {
     private String homeLabel = "";
     private String homeIcon = "house";
     private final java.util.List<MaterialButton> appButtons = new java.util.ArrayList<>();
+    /** Förstasida (HOME_MODE=launcher): tjänsterna, och om förstasidan visas just nu. Då visar ramen
+     *  tjänstens namn och Startsida i stället för flikar. */
+    private java.util.List<KioskApps.App> launcherApps = new java.util.ArrayList<>();
+    private boolean launcherVisible = false;
 
     private Scope scope = new Scope(null, "/");
     private Scope landedScope = null;
@@ -110,6 +114,31 @@ public class KioskChrome {
         homeIcon = startIcon == null || startIcon.trim().isEmpty() ? "house" : startIcon.trim();
         buildAppButtons();
         applyTexts();
+    }
+
+    /** Förstasida: tjänsterna (tom lista = ingen förstasida) */
+    public void setLauncherApps(java.util.List<KioskApps.App> apps) {
+        launcherApps = apps == null ? new java.util.ArrayList<>() : apps;
+        applyTexts();
+    }
+
+    public void setLauncherVisible(boolean visible) {
+        launcherVisible = visible;
+    }
+
+    /** Språket i kiosknavigeringen kan bytas av besökaren (knappen på förstasidan) */
+    public void setEnglish(boolean en) {
+        english = en;
+        applyTexts();
+    }
+
+    private boolean launcherMode() {
+        return !launcherApps.isEmpty();
+    }
+
+    private KioskApps.App launcherApp(String url) {
+        for (KioskApps.App a : launcherApps) if (a.scope.contains(url)) return a;
+        return null;
     }
 
     /** Fler än en app: ramen visar en knapp per app i stället för sidans titel */
@@ -210,6 +239,25 @@ public class KioskChrome {
 
     /** Visa eller dölj ramen för den sida som visas nu. */
     public void update(String url, String title, boolean canGoBack, boolean keyboardOpen) {
+        if (launcherMode()) {
+            // Tjänsten som visas: Tillbaka, tjänstens namn och Startsida (till förstasidan)
+            boolean showBar = !launcherVisible && !keyboardOpen && !"none".equals(mode);
+            navBar.setVisibility(showBar ? View.VISIBLE : View.GONE);
+            if (!showBar) return;
+            navApps.setVisibility(View.GONE);
+            navInfo.setVisibility(View.VISIBLE);
+            navHome.setVisibility(View.VISIBLE);
+            KioskApps.App app = launcherApp(url);
+            Uri u = url == null ? null : Uri.parse(url);
+            String host = u == null || u.getHost() == null ? "" : u.getHost();
+            boolean noTitle = title == null || title.trim().isEmpty() || title.startsWith("http")
+                    || errorPage.getVisibility() == View.VISIBLE;
+            navTitle.setText(app != null ? app.label : (noTitle ? host : title.trim()));
+            navHost.setText(host);
+            navBack.setEnabled(canGoBack);
+            navBack.setAlpha(canGoBack ? 1f : 0.45f);
+            return;
+        }
         boolean show = !keyboardOpen && !"none".equals(mode)
                 && (hasApps() || "always".equals(mode) || !insideApp(url));
         navBar.setVisibility(show ? View.VISIBLE : View.GONE);
@@ -315,7 +363,7 @@ public class KioskChrome {
 
     private void applyTexts() {
         navBack.setText(english ? "Back" : "Tillbaka");
-        navHome.setText(english ? "Home" : "Hem");
+        navHome.setText(launcherMode() ? (english ? "Home page" : "Startsida") : (english ? "Home" : "Hem"));
         labelAppButtons();
         ((TextView) activity.findViewById(R.id.error_retry)).setText(english ? "Try again" : "Försök igen");
         ((TextView) activity.findViewById(R.id.error_home)).setText(english ? "Home" : "Hem");

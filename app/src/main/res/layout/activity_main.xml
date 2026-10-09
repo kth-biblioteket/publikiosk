@@ -116,6 +116,121 @@
                 app:iconSize="26dp"/>
         </LinearLayout>
 
+        <!-- Förstasidan (HOME_MODE=launcher): tjänsterna som besökaren väljer bland. Täcker webbsidan
+             tills en tjänst öppnas. Byggs i LauncherScreen. -->
+        <LinearLayout
+            android:id="@+id/launcher_page"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:orientation="vertical"
+            android:background="@android:color/white"
+            android:clickable="true"
+            android:focusable="true"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <FrameLayout
+                android:id="@+id/launcher_header"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@color/kth_navy">
+                <ImageView
+                    android:id="@+id/launcher_pattern"
+                    android:layout_width="190dp"
+                    android:layout_height="116dp"
+                    android:layout_gravity="bottom|end"
+                    android:scaleY="-1"
+                    android:importantForAccessibility="no"
+                    android:scaleType="fitEnd"
+                    android:src="@drawable/launcher_pattern"/>
+                <LinearLayout
+                    android:id="@+id/launcher_head_row"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="40dp"
+                    android:paddingEnd="40dp"
+                    android:paddingTop="28dp"
+                    android:paddingBottom="28dp">
+                    <ImageView
+                        android:id="@+id/launcher_logo"
+                        android:layout_width="82dp"
+                        android:layout_height="92dp"
+                        android:contentDescription="KTH"
+                        android:src="@drawable/kth_logo_white"/>
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:paddingStart="24dp">
+                        <TextView
+                            android:id="@+id/launcher_label"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/kth_light_blue"
+                            android:textSize="21sp"
+                            android:textStyle="bold"/>
+                        <TextView
+                            android:id="@+id/launcher_title"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textColor="@android:color/white"
+                            android:textSize="52sp"
+                            android:textStyle="bold"/>
+                        <TextView
+                            android:id="@+id/launcher_subtitle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/kth_light_blue"
+                            android:textSize="21sp"/>
+                    </LinearLayout>
+                </LinearLayout>
+                <TextView
+                    android:id="@+id/launcher_language"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:layout_gravity="top|end"
+                    android:layout_marginTop="20dp"
+                    android:layout_marginEnd="40dp"
+                    android:background="@drawable/launcher_language_bg"
+                    android:drawableStart="@drawable/ic_lucide_globe"
+                    android:drawableTint="@android:color/white"
+                    android:drawablePadding="8dp"
+                    android:gravity="center_vertical"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="18dp"
+                    android:textColor="@android:color/white"
+                    android:textSize="15sp"
+                    android:textStyle="bold"/>
+            </FrameLayout>
+
+            <LinearLayout
+                android:id="@+id/launcher_tiles"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:background="@color/launcher_bg"
+                android:padding="24dp"/>
+
+            <TextView
+                android:id="@+id/launcher_footer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@android:color/white"
+                android:paddingStart="40dp"
+                android:paddingEnd="40dp"
+                android:paddingTop="16dp"
+                android:paddingBottom="16dp"
+                android:textColor="@color/nav_muted"
+                android:textSize="16sp"/>
+        </LinearLayout>
+
         <!-- Egen felsida när en sida inte kan laddas (i stället för Chromiums) -->
         <LinearLayout
             android:id="@+id/error_page"

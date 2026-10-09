@@ -98,6 +98,14 @@ public class MainActivity extends AppCompatActivity {
     private String savedAppScope = "";
     /** APPS, START_LABEL och START_ICON: fler webbappar på enheten, med hem-appen (START_URL) först */
     private String savedApps = "";
+    /** HOME_MODE=launcher: besökaren väljer bland tjänsterna (APPS) på förstasidan innan en app öppnas */
+    private String savedHomeMode = "app";
+    private String savedLauncherTitle = "", savedLauncherSubtitle = "", savedLauncherFooter = "";
+    private boolean launcherMode = false;
+    private java.util.List<KioskApps.App> launcherApps = new java.util.ArrayList<>();
+    private LauncherScreen launcher;
+    /** Språket besökaren valt med knappen på förstasidan; återställs när enheten går tillbaka till förstasidan */
+    private boolean uiEnglish = false;
     private String savedStartLabel = "";
     private String savedStartIcon = "house";
     private int savedIdleWarning = 10;
@@ -192,6 +200,19 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void keepGoing() {
                 lastActivityAt = System.currentTimeMillis();
+            }
+        });
+        launcher = new LauncherScreen(this, new LauncherScreen.Listener() {
+            @Override
+            public void open(KioskApps.App app) {
+                openAppUrl(app.url);
+            }
+
+            @Override
+            public void toggleLanguage() {
+                uiEnglish = !uiEnglish;
+                chrome.setEnglish(uiEnglish);
+                configureLauncher();
             }
         });
         // Sidan laddas om av sig själv när nätet kommer (t ex wifi efter en omstart)
@@ -438,7 +459,8 @@ public class MainActivity extends AppCompatActivity {
 
         // Ladda url i webview, utan något kvar från förra sessionen
         clearSessionIfEnabled();
-        myWeb.loadUrl(savedUrl);
+        if (launcherMode) showLauncher();
+        else myWeb.loadUrl(savedUrl);
         isUserNavigation = false;
         isInitialLoading = true;
 
@@ -584,6 +606,7 @@ public class MainActivity extends AppCompatActivity {
         chrome.hideError();
         // Misslyckades redan första laddningen kan WebView sakna adress: börja då från startsidan
         String url = myWeb.getUrl();
+        if (launcherMode && launcher.isShown()) return;
         if (url == null || url.isEmpty() || url.startsWith("about:")) myWeb.loadUrl(savedUrl);
         else myWeb.reload();
     }
@@ -592,6 +615,19 @@ public class MainActivity extends AppCompatActivity {
     private void refreshChrome(String url) {
         if (chrome == null || myWeb == null) return;
         chrome.update(url, myWeb.getTitle(), myWeb.canGoBack(), keyboardOpen);
+    }
+
+    /** Förstasidan visas, och webbsidan under den töms. Språket går tillbaka till det inställda. */
+    private void showLauncher() {
+        uiEnglish = "en".equals(savedLanguage);
+        chrome.setEnglish(uiEnglish);
+        configureLauncher();
+        launcher.show();
+        chrome.setLauncherVisible(true);
+        awaitingStart = false;
+        pageLoaded = true;
+        myWeb.loadUrl("about:blank");
+        clearHistorySoon();
     }
 
     /**
@@ -603,8 +639,12 @@ public class MainActivity extends AppCompatActivity {
         chrome.hideAll();
         lastActivityAt = System.currentTimeMillis();
         touchedSinceStart = false;
-        awaitingStart = true;
         clearSessionIfEnabled();
+        if (launcherMode) {
+            showLauncher();
+            return;
+        }
+        awaitingStart = true;
         myWeb.loadUrl(savedUrl);
         // clearHistory gäller först när nästa sida laddats
         clearHistorySoon();
@@ -624,6 +664,10 @@ public class MainActivity extends AppCompatActivity {
      * sessionen rensas inte, det görs vid inaktivitet och med Hem.
      */
     private void openAppUrl(String url) {
+        if (launcher != null && launcher.isShown()) {
+            launcher.hide();
+            chrome.setLauncherVisible(false);
+        }
         chrome.hideAll();
         lastActivityAt = System.currentTimeMillis();
         myWeb.loadUrl(url);
@@ -871,6 +915,7 @@ public class MainActivity extends AppCompatActivity {
      * startadressen omdirigerade.
      */
     private boolean isStartPage(String url) {
+        if (launcherMode) return launcher != null && launcher.isShown();
         return UrlPolicy.samePage(url, savedUrl) || (landedStartUrl != null && UrlPolicy.samePage(url, landedStartUrl));
     }
 
@@ -1005,6 +1050,10 @@ public class MainActivity extends AppCompatActivity {
         savedNavigation = sharedPreferences.getString("navigation", "auto");
         savedAppScope = sharedPreferences.getString("appscope", "");
         savedApps = sharedPreferences.getString("apps", "");
+        savedHomeMode = sharedPreferences.getString("homemode", "app");
+        savedLauncherTitle = sharedPreferences.getString("launchertitle", "");
+        savedLauncherSubtitle = sharedPreferences.getString("launchersubtitle", "");
+        savedLauncherFooter = sharedPreferences.getString("launcherfooter", "");
         savedStartLabel = sharedPreferences.getString("startlabel", "");
         savedStartIcon = sharedPreferences.getString("starticon", "house");
         savedIdleWarning = sharedPreferences.getInt("idlewarning", 10);
@@ -1016,6 +1065,19 @@ public class MainActivity extends AppCompatActivity {
         savedOrientation = sharedPreferences.getInt(PREF_ORIENTATION, 1);
         savedFullscreen = sharedPreferences.getBoolean(PREF_FULLSCREEN, true);
         savedUrl = sharedPreferences.getString(PREF_URL, "https://wagnerguide.com/c/kth/kth");
+        // Förstasida: minst två tjänster. En enda tjänst öppnas direkt (som startsida), ingen: som förut
+        launcherMode = false;
+        launcherApps = new java.util.ArrayList<>();
+        if ("launcher".equals(savedHomeMode)) {
+            java.util.List<KioskApps.App> la = KioskApps.parse(savedApps);
+            if (la.size() >= 2) {
+                launcherMode = true;
+                launcherApps = la;
+            } else if (la.size() == 1) {
+                savedUrl = la.get(0).url;
+                savedApps = "";
+            }
+        }
 
         orientationSpinner.setSelection(savedOrientation);
         fullscreenCheckbox.setChecked(savedFullscreen);
@@ -1036,8 +1098,22 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void configureChrome() {
+        // På förstasidan visar ramen inga flikar: tjänsterna ligger i launcherApps
         chrome.configure(savedUrl, savedAppScope, savedNavigation, savedLanguage,
-                savedStartLabel, savedStartIcon, savedApps);
+                savedStartLabel, savedStartIcon, launcherMode ? "" : savedApps);
+        chrome.setLauncherApps(launcherApps);
+        if (launcherMode) chrome.setEnglish(uiEnglish);
+        configureLauncher();
+    }
+
+    private void configureLauncher() {
+        if (launcher == null) return;
+        if (launcherMode) {
+            launcher.configure(launcherApps, savedLauncherTitle, savedLauncherSubtitle, savedLauncherFooter, uiEnglish);
+        } else if (launcher.isShown()) {
+            launcher.hide();
+            chrome.setLauncherVisible(false);
+        }
     }
 
     private void saveSettings() {

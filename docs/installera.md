@@ -133,7 +133,7 @@ En enhet som styrs från publicomtools kan ha fler webbappar som besökaren väx
 (`START_URL`) är hem-appen, och `APPS` listar de andra. De ställs bara in i publicomtools, inte i menyn.
 
 - **Startsidans namn** och **Startsidans ikon** (`START_LABEL`, `START_ICON`): namnet och ikonen på hem-appens knapp. Tomt namn ger *Hem*, standardikonen är ett hus.
-- **Webbappar** (`APPS`): i publicomtools redigeras de i en egen vy med ett kort per app (namn, adress, ikon och avancerat område) som du lägger till, tar bort och drar i ordning. Högst fem. Värdarna blir automatiskt tillåtna webbplatser. Under ytan sparas en app per rad som `Namn|https://adress/|ikon|område`, där ikon och område är valfria, och appen läser både radbrytning och komma som avgränsare.
+- **Webbappar** (`APPS`): i publicomtools redigeras de i en egen vy med ett kort per app (namn, adress, ikon och avancerat område) som du lägger till, tar bort och drar i ordning. Högst fem (sex med förstasida). Värdarna blir automatiskt tillåtna webbplatser. Under ytan sparas en app per rad som `Namn|https://adress/|ikon|område|beskrivning`, där allt utom namn och adress är valfritt. Appen läser radbrytning som avgränsare, och komma om det inte finns någon radbrytning.
 - **Område** anges som i *Appens område* (värd och sökväg). Tomt betyder adressens värd och sökväg som katalog.
 - **Ikon** är något av namnen `house`, `search`, `map`, `map-pin`, `calendar`, `book-open`, `library`, `info`, `circle-help`, `printer`, `monitor`, `user`, `clock` och `graduation-cap` (Lucide). Utan ikon visas bara namnet.
 
@@ -148,6 +148,23 @@ Med fler appar visas ramen alltid, med Tillbaka och en knapp per app, där den a
 en app ger en ny start i den: dess startsida, utan historik. Hem-appens knapp gör som Hem förut och rensar
 sessionen. Utan `APPS` beter sig enheten som förut: ramen visas bara utanför appen. Ingen ram visas om
 *Kiosknavigering* är *Aldrig* (skyltar).
+
+### Förstasida med tjänster
+
+Med **Börja med** (`HOME_MODE`) satt till *Förstasida med tjänster* visar enheten en egen förstasida innan
+någon app öppnas, i stället för att starta i en app:
+
+- Förstasidan visar ett stort kort per tjänst (namn, ikon och en kort beskrivning). Tjänsterna är `APPS`,
+  och startsidan (`START_URL`) används inte. Högst sex tjänster.
+- Ett tryck på ett kort öppnar tjänsten. Då visas ramen med Tillbaka, tjänstens namn och **Startsida**, som
+  tar besökaren tillbaka till förstasidan (och rensar sessionen).
+- Efter inaktivitet går enheten tillbaka till förstasidan, med samma varning "Är du kvar?" som förut.
+- Rubrik, underrubrik och en valfri rad längst ner ställs in med `LAUNCHER_TITLE`, `LAUNCHER_SUBTITLE` och
+  `LAUNCHER_FOOTER`. Tomma texter får standardtext. Knappen **English** byter språk på förstasidan och
+  ramen tills enheten går tillbaka till förstasidan; egna texter byts inte.
+- Har enheten bara en tjänst hoppar den över förstasidan och öppnar den direkt. Utan tjänster beter sig
+  enheten som med *En app*.
+- Det finns ingen startbild längre (`SPLASH` är borttagen): förstasidan är det som visas när ingen använder enheten.
 
 ## 8. Stäng av USB-felsökning
 

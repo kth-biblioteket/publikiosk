@@ -1,0 +1,10 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="620dp" android:height="380dp"
+    android:viewportWidth="620" android:viewportHeight="380">
+    <!-- KTH:s linjemönster (övre högra hörnet av mönsterfilen). Vänds upp och ner i vyn. -->
+    <group android:translateX="-460">
+        <path android:pathData="M0,120 L240,120 L-2,483" android:strokeColor="#FF6A8EE0" android:strokeWidth="3.6" android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="#00000000"/>
+        <path android:pathData="m600,-3v243c-66.27,0 -120,-53.73 -120,-120h602.35" android:strokeColor="#FF6A8EE0" android:strokeWidth="3.6" android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="#00000000"/>
+        <path android:pathData="m720,0c0,198.82 161.18,360 360,360" android:strokeColor="#FF6A8EE0" android:strokeWidth="3.6" android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="#00000000"/>
+    </group>
+</vector>

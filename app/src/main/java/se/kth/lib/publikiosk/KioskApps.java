@@ -8,43 +8,50 @@ import java.util.List;
 
 /**
  * Fler webbappar på en enhet. START_URL är hem-appen; APPS listar de övriga, en per post:
- * "Namn|https://adress/|ikon|område". Ikon och område är valfria. Området är som APP_SCOPE
- * (värd och sökväg); tomt betyder adressens värd och sökväg som katalog.
+ * "Namn|https://adress/|ikon|område|beskrivning". Allt utom namn och adress är valfritt. Området är
+ * som APP_SCOPE (värd och sökväg); tomt betyder adressens värd och sökväg som katalog. Beskrivningen
+ * visas på förstasidan (HOME_MODE=launcher). I det läget är APPS alla tjänster och START_URL används inte.
  */
 final class KioskApps {
 
     private static final String TAG = "KioskApps";
-    /** Hem-appen och högst fem till ryms i ramen */
-    static final int MAX_APPS = 5;
+    /** Högst sex appar: i ramen hem-appen och fem till, på förstasidan sex tjänster */
+    static final int MAX_APPS = 6;
 
     static final class App {
         final String label;
         final String url;
         final String icon;
         final KioskChrome.Scope scope;
+        final String desc;
 
-        App(String label, String url, String icon, KioskChrome.Scope scope) {
+        App(String label, String url, String icon, KioskChrome.Scope scope, String desc) {
             this.label = label;
             this.url = url;
             this.icon = icon;
             this.scope = scope;
+            this.desc = desc;
         }
     }
 
     private KioskApps() {
     }
 
-    /** Poster åtskilda med komma eller radbrytning. Ogiltiga poster hoppas över. */
+    /** Poster åtskilda med radbrytning (eller komma, utan radbrytning). Ogiltiga poster hoppas över. */
     static List<App> parse(String raw) {
         List<App> apps = new ArrayList<>();
         if (raw == null || raw.trim().isEmpty()) return apps;
-        for (String entry : raw.split("[,\\n]")) {
+        // En post per rad (som publicomtools sparar den). Utan radbrytning: komma, som äldre värden
+        // (och då kan en beskrivning inte innehålla komma)
+        String[] entries = raw.contains("\n") ? raw.split("\\r?\\n") : raw.split(",");
+        for (String entry : entries) {
             if (entry.trim().isEmpty()) continue;
             String[] parts = entry.split("\\|", -1);
             String label = parts[0].trim();
             String url = parts.length > 1 ? parts[1].trim() : "";
             String icon = parts.length > 2 ? parts[2].trim() : "";
             String scopeText = parts.length > 3 ? parts[3].trim() : "";
+            String desc = parts.length > 4 ? parts[4].trim() : "";
             if (label.isEmpty() || !url.startsWith("https://") || Uri.parse(url).getHost() == null) {
                 Log.w(TAG, "Ogiltig post i APPS hoppas över: " + entry.trim());
                 continue;
@@ -55,7 +62,7 @@ final class KioskApps {
                 Log.w(TAG, "För många appar i APPS, " + label + " och resten hoppas över");
                 break;
             }
-            apps.add(new App(label, url, icon, scope));
+            apps.add(new App(label, url, icon, scope, desc));
         }
         return apps;
     }
@@ -68,6 +75,12 @@ final class KioskApps {
             if (host != null) sb.append(',').append(host);
         }
         return sb.toString();
+    }
+
+    /** Ikonen för en tjänst på förstasidan: den som står i inställningen, annars en informationsikon */
+    static int tileIcon(String name) {
+        int res = icon(name);
+        return res != 0 ? res : R.drawable.ic_lucide_info;
     }
 
     /** Ikonen med det namn som står i inställningen (Lucide), eller 0 om den saknas */

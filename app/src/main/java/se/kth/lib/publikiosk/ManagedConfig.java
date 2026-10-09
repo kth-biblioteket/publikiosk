@@ -55,6 +55,11 @@ public final class ManagedConfig {
         if (!navigation.equals("always") && !navigation.equals("none")) navigation = "auto";
         changed |= putString(prefs, e, "navigation", navigation);
         changed |= putString(prefs, e, "appscope", values.optString("APP_SCOPE", "").trim());
+        String homeMode = "launcher".equals(values.optString("HOME_MODE", "app").trim()) ? "launcher" : "app";
+        changed |= putString(prefs, e, "homemode", homeMode);
+        changed |= putString(prefs, e, "launchertitle", values.optString("LAUNCHER_TITLE", "").trim());
+        changed |= putString(prefs, e, "launchersubtitle", values.optString("LAUNCHER_SUBTITLE", "").trim());
+        changed |= putString(prefs, e, "launcherfooter", values.optString("LAUNCHER_FOOTER", "").trim());
         changed |= putString(prefs, e, "apps", values.optString("APPS", "").trim());
         changed |= putString(prefs, e, "startlabel", values.optString("START_LABEL", "").trim());
         String startIcon = values.optString("START_ICON", "house").trim();
