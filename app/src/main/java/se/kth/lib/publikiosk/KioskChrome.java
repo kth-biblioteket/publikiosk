@@ -251,6 +251,22 @@ public class KioskChrome {
         b.setLayoutParams(lp);
     }
 
+    /** Textknappar utan ikon: bredden ur texten, av samma skäl som fitWidth */
+    private void fitTextButtons() {
+        for (int id : new int[]{R.id.error_retry, R.id.error_home, R.id.blocked_close}) {
+            MaterialButton b = activity.findViewById(id);
+            b.setMaxLines(1);
+            ViewGroup.LayoutParams lp = b.getLayoutParams();
+            lp.width = Math.round(new android.graphics.Paint(b.getPaint()).measureText(b.getText().toString()) + s(28) * 2 + s(4));
+            b.setLayoutParams(lp);
+        }
+        MaterialButton restart = activity.findViewById(R.id.idle_restart);
+        restart.setMaxLines(1);
+        ViewGroup.LayoutParams rlp = restart.getLayoutParams();
+        rlp.width = Math.round(new android.graphics.Paint(restart.getPaint()).measureText(restart.getText().toString()) + s(24) * 2 + s(4));
+        restart.setLayoutParams(rlp);
+    }
+
     private void applyScale() {
         ViewGroup.LayoutParams bar = navBar.getLayoutParams();
         bar.height = s(88);
@@ -277,6 +293,8 @@ public class KioskChrome {
         navHost.setTextSize(TypedValue.COMPLEX_UNIT_PX, s(15));
         navApps.setPadding(s(16), 0, 0, 0);
         applyIdleScale();
+        applyBlockedScale();
+        applyErrorScale();
     }
 
     /** "Är du kvar?" med skissens mått (kort 560, ring 120, rubrik 30, text 20, knappar 72 och 56), skalade som resten */
@@ -320,6 +338,68 @@ public class KioskChrome {
         restart.setTypeface(Fonts.bold(activity));
         restart.setPadding(s(24), 0, s(24), 0);
         setTopMargin(restart, s(18));
+    }
+
+
+    /** Spärr-arket med skissens mått: ark 760 brett, text 30 och 20, Stäng 60 hög, QR 210 i en ram */
+    private void applyBlockedScale() {
+        blockedSheet.setBackgroundColor(Color.argb(115, 0, 0, 40));
+        ViewGroup sheet = (ViewGroup) ((ViewGroup) blockedSheet).getChildAt(0);
+        android.widget.FrameLayout.LayoutParams slp = (android.widget.FrameLayout.LayoutParams) sheet.getLayoutParams();
+        slp.width = Math.min(s(760), activity.getResources().getDisplayMetrics().widthPixels);
+        sheet.setLayoutParams(slp);
+        sheet.setPadding(s(40), s(36), s(40), s(40));
+        TextView title = activity.findViewById(R.id.blocked_title);
+        title.setTextSize(TypedValue.COMPLEX_UNIT_PX, s(30));
+        title.setTypeface(Fonts.extraBold(activity));
+        TextView text = activity.findViewById(R.id.blocked_text);
+        text.setTextSize(TypedValue.COMPLEX_UNIT_PX, s(20));
+        text.setTypeface(Fonts.regular(activity));
+        text.setTextColor(Color.parseColor("#3D4452"));
+        text.setLineSpacing(0, 1.5f);
+        setTopMargin(text, s(14));
+        MaterialButton close = activity.findViewById(R.id.blocked_close);
+        setSize(close, ViewGroup.LayoutParams.WRAP_CONTENT, s(60));
+        close.setTextSize(TypedValue.COMPLEX_UNIT_PX, s(20));
+        close.setCornerRadius(s(14));
+        close.setLetterSpacing(0f);
+        close.setTypeface(Fonts.bold(activity));
+        close.setPadding(s(28), 0, s(28), 0);
+        setTopMargin(close, s(20));
+        ImageView qr = activity.findViewById(R.id.blocked_qr);
+        setSize(qr, s(238), s(238));
+        qr.setPadding(s(14), s(14), s(14), s(14));
+        ((ViewGroup.MarginLayoutParams) qr.getLayoutParams()).setMarginStart(s(32));
+    }
+
+    /** Felsidan med skissens mått: ikon 72, rubrik 34, text 20, knappar 60 hög med 14 mellanrum */
+    private void applyErrorScale() {
+        errorPage.setPadding(s(48), s(48), s(48), s(48));
+        ViewGroup page = (ViewGroup) errorPage;
+        setSize(page.getChildAt(0), s(72), s(72));
+        TextView title = activity.findViewById(R.id.error_title);
+        title.setTextSize(TypedValue.COMPLEX_UNIT_PX, s(34));
+        title.setTypeface(Fonts.extraBold(activity));
+        setTopMargin(title, s(18));
+        TextView text = activity.findViewById(R.id.error_text);
+        text.setTextSize(TypedValue.COMPLEX_UNIT_PX, s(20));
+        text.setTypeface(Fonts.regular(activity));
+        text.setTextColor(Color.parseColor("#3D4452"));
+        text.setLineSpacing(0, 1.5f);
+        text.setMaxWidth(s(560));
+        setTopMargin(text, s(18));
+        setTopMargin(page.getChildAt(3), s(26));
+        for (int id : new int[]{R.id.error_retry, R.id.error_home}) {
+            MaterialButton b = activity.findViewById(id);
+            setSize(b, ViewGroup.LayoutParams.WRAP_CONTENT, s(60));
+            b.setTextSize(TypedValue.COMPLEX_UNIT_PX, s(20));
+            b.setCornerRadius(s(14));
+            b.setLetterSpacing(0f);
+            b.setTypeface(Fonts.bold(activity));
+            b.setPadding(s(28), 0, s(28), 0);
+            b.setStrokeWidth(id == R.id.error_retry ? Math.max(1, s(2)) : 0);
+        }
+        ((ViewGroup.MarginLayoutParams) activity.findViewById(R.id.error_retry).getLayoutParams()).setMarginEnd(s(14));
     }
 
     private static void setSize(View v, int w, int h) {
@@ -482,6 +562,7 @@ public class KioskChrome {
         navBack.setText(english ? "Back" : "Tillbaka");
         navHome.setText(launcherMode() ? (english ? "Home page" : "Startsida") : (english ? "Home" : "Hem"));
         labelAppButtons();
+        fitTextButtons();
         fitWidth((MaterialButton) navBack, 14, 22, 6);
         fitWidth((MaterialButton) navHome, 18, 24, 10);
         ((TextView) activity.findViewById(R.id.error_retry)).setText(english ? "Try again" : "Försök igen");
