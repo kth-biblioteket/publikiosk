@@ -10,8 +10,8 @@ android {
         applicationId "se.kth.lib.publikiosk"
         minSdk 23
         targetSdk 34
-        versionCode 3155
-        versionName "3.15.5"
+        versionCode 3156
+        versionName "3.15.6"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -566,7 +566,9 @@ public class KioskChrome {
         fitWidth((MaterialButton) navBack, 14, 22, 6);
         fitWidth((MaterialButton) navHome, 18, 24, 10);
         ((TextView) activity.findViewById(R.id.error_retry)).setText(english ? "Try again" : "Försök igen");
-        ((TextView) activity.findViewById(R.id.error_home)).setText(english ? "Home" : "Hem");
+        // Startknappen på felsidan heter det som START_LABEL anger, annars som startknappen i ramen
+        ((TextView) activity.findViewById(R.id.error_home)).setText(!homeLabel.isEmpty() ? homeLabel
+                : launcherMode() ? (english ? "Home page" : "Startsida") : (english ? "Home" : "Hem"));
         ((TextView) activity.findViewById(R.id.idle_title)).setText(english ? "Are you still there?" : "Är du kvar?");
         ((TextView) activity.findViewById(R.id.idle_continue)).setText(english ? "Continue here" : "Fortsätt här");
         ((TextView) activity.findViewById(R.id.idle_restart)).setText(english ? "Start over now" : "Börja om nu");
