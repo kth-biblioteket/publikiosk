@@ -247,6 +247,14 @@ public class LauncherFooter {
         message.setTextColor(alert ? Color.WHITE : Color.parseColor("#4A3200"));
         message.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(portrait ? 20 : 22));
         message.setPadding(px(portrait ? 48 : 56), px(12), px(portrait ? 48 : 56), px(12));
+        // Samma "i" för alla grader, färgen visar graden
+        android.graphics.drawable.Drawable info = activity.getDrawable(R.drawable.ic_lucide_info).mutate();
+        int size = px(portrait ? 26 : 28);
+        info.setBounds(0, 0, size, size);
+        info.setTint(alert ? Color.WHITE : Color.parseColor("#4A3200"));
+        message.setCompoundDrawablesRelative(info, null, null, null);
+        message.setCompoundDrawablePadding(px(14));
+        message.setGravity(Gravity.CENTER_VERTICAL);
         message.setVisibility(View.VISIBLE);
     }
 
