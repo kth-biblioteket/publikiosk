@@ -6,6 +6,7 @@ import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.net.Uri;
 import android.util.Log;
+import android.util.TypedValue;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -117,6 +118,7 @@ public class KioskChrome {
         apps = KioskApps.parse(appsRaw);
         homeLabel = startLabel == null ? "" : startLabel.trim();
         homeIcon = startIcon == null || startIcon.trim().isEmpty() ? "house" : startIcon.trim();
+        applyScale();
         buildAppButtons();
         applyTexts();
     }
@@ -172,22 +174,25 @@ public class KioskChrome {
             int res = KioskApps.icon(icon);
             if (res != 0) {
                 b.setIconResource(res);
-                b.setIconSize(dp(26));
+                b.setIconSize(s(26));
                 b.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_START);
-                b.setIconPadding(dp(8));
+                b.setIconPadding(s(10));
             }
             b.setAllCaps(false);
-            b.setSingleLine(true);
+            b.setMaxLines(1);
+            b.setHorizontallyScrolling(false);
+            b.setEllipsize(null);
+            b.setLetterSpacing(0f);
             b.setEllipsize(android.text.TextUtils.TruncateAt.END);
-            b.setTextSize(18);
+            b.setTextSize(TypedValue.COMPLEX_UNIT_PX, s(20));
             b.setTypeface(Fonts.bold(activity));
             b.setInsetTop(0);
             b.setInsetBottom(0);
-            b.setCornerRadius(dp(14));
-            b.setStrokeWidth(dp(2));
-            b.setPadding(dp(8), 0, dp(8), 0);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(60), 1f);
-            if (i > 0) lp.setMarginStart(dp(10));
+            b.setCornerRadius(s(14));
+            b.setStrokeWidth(Math.max(1, s(2)));
+            b.setPadding(s(22), 0, s(22), 0);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, s(60), 1f);
+            if (i > 0) lp.setMarginStart(s(16));
             b.setLayoutParams(lp);
             b.setOnClickListener(v -> {
                 if (index == 0) actions.home();
@@ -224,8 +229,53 @@ public class KioskChrome {
         }
     }
 
-    private int dp(int v) {
-        return Math.round(v * activity.getResources().getDisplayMetrics().density);
+    /**
+     * Mått som i skissen: ramen ritas för en skärm som är 1280 bred liggande (800 stående) och skalas till
+     * skärmens bredd, som förstasidan. Då ser ramen likadan ut på alla skärmar, och som i Linux-kiosken.
+     */
+    private int s(float design) {
+        return Math.round(design * scale());
+    }
+
+    private float scale() {
+        boolean portrait = activity.getResources().getConfiguration().orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT;
+        return activity.getResources().getDisplayMetrics().widthPixels / (portrait ? 800f : 1280f);
+    }
+
+    /** Knappens bredd räknas ut ur texten, så att ingen bokstav klipps (Material mäter ibland för snävt med egna typsnitt) */
+    private void fitWidth(MaterialButton b, int padStart, int padEnd, int iconGap) {
+        android.graphics.Paint paint = new android.graphics.Paint(b.getPaint());
+        float text = paint.measureText(b.getText().toString());
+        ViewGroup.LayoutParams lp = b.getLayoutParams();
+        lp.width = Math.round(s(padStart) + s(26) + s(iconGap) + text + s(padEnd) + s(4));
+        b.setLayoutParams(lp);
+    }
+
+    private void applyScale() {
+        ViewGroup.LayoutParams bar = navBar.getLayoutParams();
+        bar.height = s(88);
+        navBar.setLayoutParams(bar);
+        navBar.setPadding(s(20), 0, s(20), 0);
+        for (TextView t : new TextView[]{navBack, navHome}) {
+            MaterialButton b = (MaterialButton) t;
+            ViewGroup.LayoutParams lp = b.getLayoutParams();
+            lp.height = s(60);
+            b.setLayoutParams(lp);
+            b.setTextSize(TypedValue.COMPLEX_UNIT_PX, s(20));
+            b.setCornerRadius(s(14));
+            b.setIconSize(s(26));
+            b.setIconPadding(s(t == navBack ? 6 : 10));
+            b.setMinWidth(0);
+            b.setMinimumWidth(0);
+            b.setSingleLine(true);
+            b.setLetterSpacing(0f);
+        }
+        ((MaterialButton) navBack).setStrokeWidth(Math.max(1, s(2)));
+        navBack.setPadding(s(14), 0, s(22), 0);
+        navHome.setPadding(s(18), 0, s(24), 0);
+        navTitle.setTextSize(TypedValue.COMPLEX_UNIT_PX, s(22));
+        navHost.setTextSize(TypedValue.COMPLEX_UNIT_PX, s(15));
+        navApps.setPadding(s(16), 0, 0, 0);
     }
 
     /**
@@ -370,6 +420,8 @@ public class KioskChrome {
         navBack.setText(english ? "Back" : "Tillbaka");
         navHome.setText(launcherMode() ? (english ? "Home page" : "Startsida") : (english ? "Home" : "Hem"));
         labelAppButtons();
+        fitWidth((MaterialButton) navBack, 14, 22, 6);
+        fitWidth((MaterialButton) navHome, 18, 24, 10);
         ((TextView) activity.findViewById(R.id.error_retry)).setText(english ? "Try again" : "Försök igen");
         ((TextView) activity.findViewById(R.id.error_home)).setText(english ? "Home" : "Hem");
         ((TextView) activity.findViewById(R.id.idle_title)).setText(english ? "Are you still there?" : "Är du kvar?");
