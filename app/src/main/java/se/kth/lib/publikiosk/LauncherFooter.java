@@ -167,7 +167,7 @@ public class LauncherFooter {
             int side = px(portrait ? 48 : 56);
             panel.setPadding(side, 0, side, 0);
             panel.setGravity(Gravity.CENTER_VERTICAL);
-            panel.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, px(portrait ? 150 : 140)));
+            panel.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, px(portrait ? 110 : 100)));
             int gap = px(portrait ? 20 : 36);
             for (Field f : config.fields) {
                 if (panel.getChildCount() > 0) panel.addView(separator(gap));
@@ -180,7 +180,7 @@ public class LauncherFooter {
     private View separator(int gap) {
         View v = new View(activity);
         v.setBackgroundColor(Color.argb(51, 0, 0, 97));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(Math.max(1, px(1)), px(portrait ? 70 : 80));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(Math.max(1, px(1)), px(portrait ? 52 : 60));
         lp.leftMargin = gap;
         lp.rightMargin = gap;
         v.setLayoutParams(lp);
@@ -196,7 +196,7 @@ public class LauncherFooter {
             label.setText(f.label(english).toUpperCase(english ? java.util.Locale.ENGLISH : new java.util.Locale("sv")));
             label.setTextColor(activity.getColor(R.color.kth_blue));
             label.setTypeface(Fonts.bold(activity));
-            label.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(portrait ? 13 : 16));
+            label.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(portrait ? 12 : 14));
             label.setLetterSpacing(0.06f);
             label.setSingleLine(true);
             label.setEllipsize(TextUtils.TruncateAt.END);
@@ -205,11 +205,11 @@ public class LauncherFooter {
         TextView value = new TextView(activity);
         value.setTextColor(activity.getColor(R.color.kth_navy));
         value.setTypeface(Fonts.extraBold(activity));
-        value.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(portrait ? 36 : 44));
+        value.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(portrait ? 30 : 36));
         value.setSingleLine(true);
         value.setEllipsize(TextUtils.TruncateAt.END);
         LinearLayout.LayoutParams vlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        vlp.topMargin = px(6);
+        vlp.topMargin = px(4);
         box.addView(value, vlp);
         valueViews.add(value);
         valueFields.add(f);
@@ -222,7 +222,7 @@ public class LauncherFooter {
         c.setFormat12Hour("HH:mm");
         c.setTextColor(activity.getColor(R.color.kth_navy));
         c.setTypeface(Fonts.extraBold(activity));
-        c.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(portrait ? 44 : 56));
+        c.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(portrait ? 38 : 46));
         c.setSingleLine(true);
         c.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         return c;
@@ -244,8 +244,8 @@ public class LauncherFooter {
         message.setText(text);
         message.setBackgroundColor(alert ? Color.parseColor("#B3261E") : Color.parseColor("#FFF3D6"));
         message.setTextColor(alert ? Color.WHITE : Color.parseColor("#4A3200"));
-        message.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(portrait ? 22 : 24));
-        message.setPadding(px(portrait ? 48 : 56), px(portrait ? 16 : 18), px(portrait ? 48 : 56), px(portrait ? 16 : 18));
+        message.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(portrait ? 20 : 22));
+        message.setPadding(px(portrait ? 48 : 56), px(12), px(portrait ? 48 : 56), px(12));
         message.setVisibility(View.VISIBLE);
     }
 

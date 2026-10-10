@@ -149,6 +149,20 @@ public class LauncherScreen {
 
         FrameLayoutHolder icon = new FrameLayoutHolder(activity, KioskApps.tileIcon(app.icon), px(60));
         tile.addView(icon.box, new LinearLayout.LayoutParams(px(112), px(112)));
+        // Ryms inte kortet (informationsfält och meddelande tar plats) krymper ikonrutan i stället för att klippas
+        tile.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+            int box = Math.min(px(112), (b - t) - px(24));
+            if (box < px(48)) box = px(48);
+            ViewGroup.LayoutParams lp = icon.box.getLayoutParams();
+            if (lp.height == box) return;
+            lp.width = box;
+            lp.height = box;
+            icon.box.setLayoutParams(lp);
+            View glyph = icon.box.getChildAt(0);
+            ViewGroup.LayoutParams glp = glyph.getLayoutParams();
+            glp.width = glp.height = Math.round(box * 60f / 112f);
+            glyph.setLayoutParams(glp);
+        });
 
         LinearLayout text = new LinearLayout(activity);
         text.setOrientation(LinearLayout.VERTICAL);
