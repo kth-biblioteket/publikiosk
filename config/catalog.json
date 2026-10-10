@@ -47,7 +47,7 @@
     { "key": "LAUNCHER_REFRESH", "label": "Hämta från adresser var", "group": "startsida", "type": "int", "unit": "minuter", "default": "1",
       "help": "Hur ofta fälten och meddelandet hämtas från sina adresser medan förstasidan visas." },
     { "key": "START_LABEL", "label": "Startsidans namn", "group": "startsida", "type": "string", "example": "Boka rum",
-      "help": "Namnet på startsidans knapp när enheten har fler webbappar (se Fler webbappar nedan). Tomt: Hem." },
+      "help": "Texten på knappen som tar besökaren tillbaka till början (navigeringen och felsidan; med flera webbappar också startsidans flik). Tomt: Startsida (Home page på engelska) med förstasida och Hem (Home) när första tjänsten är hem." },
     { "key": "START_ICON", "label": "Startsidans ikon", "group": "startsida", "type": "enum", "default": "house",
       "options": [{ "value": "house", "label": "Hus" }, { "value": "search", "label": "Sök" }, { "value": "map", "label": "Karta" }, { "value": "map-pin", "label": "Kartnål" }, { "value": "calendar", "label": "Kalender" }, { "value": "book-open", "label": "Bok" }, { "value": "library", "label": "Bibliotek" }, { "value": "info", "label": "Information" }, { "value": "circle-help", "label": "Hjälp" }, { "value": "printer", "label": "Skrivare" }, { "value": "monitor", "label": "Dator" }, { "value": "user", "label": "Person" }, { "value": "clock", "label": "Klocka" }, { "value": "graduation-cap", "label": "Studentmössa" }],
       "help": "Ikonen på startsidans knapp när enheten har fler webbappar." },
