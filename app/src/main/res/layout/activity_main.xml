@@ -356,12 +356,11 @@
                 android:background="@drawable/kiosk_card"
                 android:padding="36dp"
                 android:accessibilityLiveRegion="polite">
-                <TextView
+                <se.kth.lib.publikiosk.CountdownView
                     android:id="@+id/idle_count"
                     android:layout_width="112dp"
                     android:layout_height="112dp"
                     android:gravity="center"
-                    android:background="@drawable/kiosk_countdown"
                     android:textSize="44sp"
                     android:textStyle="bold"
                     android:textColor="@color/kth_navy"/>

@@ -276,6 +276,63 @@ public class KioskChrome {
         navTitle.setTextSize(TypedValue.COMPLEX_UNIT_PX, s(22));
         navHost.setTextSize(TypedValue.COMPLEX_UNIT_PX, s(15));
         navApps.setPadding(s(16), 0, 0, 0);
+        applyIdleScale();
+    }
+
+    /** "Är du kvar?" med skissens mått (kort 560, ring 120, rubrik 30, text 20, knappar 72 och 56), skalade som resten */
+    private void applyIdleScale() {
+        idleWarning.setBackgroundColor(Color.argb(140, 0, 0, 40));
+        ViewGroup card = (ViewGroup) activity.findViewById(R.id.idle_count).getParent();
+        card.setPadding(s(40), s(40), s(40), s(40));
+        android.widget.FrameLayout.LayoutParams clp = (android.widget.FrameLayout.LayoutParams) card.getLayoutParams();
+        clp.width = Math.min(s(560), activity.getResources().getDisplayMetrics().widthPixels - s(64));
+        card.setLayoutParams(clp);
+        android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+        bg.setColor(Color.WHITE);
+        bg.setCornerRadius(s(24));
+        card.setBackground(bg);
+        TextView count = activity.findViewById(R.id.idle_count);
+        setSize(count, s(120), s(120));
+        count.setTextSize(TypedValue.COMPLEX_UNIT_PX, s(48));
+        count.setTypeface(Fonts.extraBold(activity));
+        TextView title = activity.findViewById(R.id.idle_title);
+        title.setTextSize(TypedValue.COMPLEX_UNIT_PX, s(30));
+        title.setTypeface(Fonts.extraBold(activity));
+        setTopMargin(title, s(18));
+        TextView text = activity.findViewById(R.id.idle_text);
+        text.setTextSize(TypedValue.COMPLEX_UNIT_PX, s(20));
+        text.setTypeface(Fonts.regular(activity));
+        text.setTextColor(Color.parseColor("#3D4452"));
+        text.setLineSpacing(0, 1.5f);
+        setTopMargin(text, s(18));
+        MaterialButton cont = activity.findViewById(R.id.idle_continue);
+        setSize(cont, ViewGroup.LayoutParams.MATCH_PARENT, s(72));
+        cont.setTextSize(TypedValue.COMPLEX_UNIT_PX, s(24));
+        cont.setCornerRadius(s(16));
+        cont.setLetterSpacing(0f);
+        cont.setTypeface(Fonts.bold(activity));
+        setTopMargin(cont, s(18));
+        MaterialButton restart = activity.findViewById(R.id.idle_restart);
+        setSize(restart, ViewGroup.LayoutParams.WRAP_CONTENT, s(56));
+        restart.setTextSize(TypedValue.COMPLEX_UNIT_PX, s(20));
+        restart.setCornerRadius(s(14));
+        restart.setLetterSpacing(0f);
+        restart.setTypeface(Fonts.bold(activity));
+        restart.setPadding(s(24), 0, s(24), 0);
+        setTopMargin(restart, s(18));
+    }
+
+    private static void setSize(View v, int w, int h) {
+        ViewGroup.LayoutParams lp = v.getLayoutParams();
+        lp.width = w;
+        lp.height = h;
+        v.setLayoutParams(lp);
+    }
+
+    private static void setTopMargin(View v, int px) {
+        ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) v.getLayoutParams();
+        lp.topMargin = px;
+        v.setLayoutParams(lp);
     }
 
     /**
@@ -342,8 +399,13 @@ public class KioskChrome {
 
     // --- Varning före tillbakagång ---
 
+    private int warningTotal = 0;
+
     public void showWarning(int secondsLeft) {
-        ((TextView) activity.findViewById(R.id.idle_count)).setText(String.valueOf(secondsLeft));
+        if (idleWarning.getVisibility() != View.VISIBLE || secondsLeft > warningTotal) warningTotal = secondsLeft;
+        CountdownView count = activity.findViewById(R.id.idle_count);
+        count.setText(String.valueOf(secondsLeft));
+        count.setProgress(warningTotal > 0 ? secondsLeft / (float) warningTotal : 0f);
         ((TextView) activity.findViewById(R.id.idle_text)).setText(english
                 ? "Nobody has touched the screen for a while. In " + secondsLeft + " seconds the app starts over and what you did here is cleared."
                 : "Ingen har rört skärmen på en stund. Om " + secondsLeft + " sekunder börjar appen om från början och det du har gjort här rensas.");
