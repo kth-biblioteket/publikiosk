@@ -63,6 +63,15 @@ public final class ManagedConfig {
         changed |= putString(prefs, e, "launchertitle_en", values.optString("LAUNCHER_TITLE_EN", "").trim());
         changed |= putString(prefs, e, "launchersubtitle_en", values.optString("LAUNCHER_SUBTITLE_EN", "").trim());
         changed |= putString(prefs, e, "launcherfooter_en", values.optString("LAUNCHER_FOOTER_EN", "").trim());
+        changed |= putString(prefs, e, "launcherfield1", values.optString("LAUNCHER_FIELD_1", "").trim());
+        changed |= putString(prefs, e, "launcherfield2", values.optString("LAUNCHER_FIELD_2", "").trim());
+        changed |= putString(prefs, e, "launcherfield3", values.optString("LAUNCHER_FIELD_3", "").trim());
+        changed |= putString(prefs, e, "launcherfield4", values.optString("LAUNCHER_FIELD_4", "").trim());
+        changed |= putString(prefs, e, "launchermessage", values.optString("LAUNCHER_MESSAGE", "").trim());
+        changed |= putString(prefs, e, "launchermessage_en", values.optString("LAUNCHER_MESSAGE_EN", "").trim());
+        changed |= putString(prefs, e, "launchermessageurl", values.optString("LAUNCHER_MESSAGE_URL", "").trim());
+        changed |= putString(prefs, e, "launchermessagestyle", "alert".equals(values.optString("LAUNCHER_MESSAGE_STYLE", "warning").trim()) ? "alert" : "warning");
+        changed |= putInt(prefs, e, "launcherrefresh", intValue(values, "LAUNCHER_REFRESH", 1, 1, 60));
         changed |= putString(prefs, e, "apps", values.optString("APPS", "").trim());
         changed |= putString(prefs, e, "startlabel", values.optString("START_LABEL", "").trim());
         String startIcon = values.optString("START_ICON", "house").trim();

@@ -219,6 +219,20 @@
                 android:padding="24dp"/>
 
             <TextView
+                android:id="@+id/launcher_message"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"/>
+
+            <LinearLayout
+                android:id="@+id/launcher_info"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:background="@drawable/launcher_info_bg"
+                android:visibility="gone"/>
+
+            <TextView
                 android:id="@+id/launcher_footer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

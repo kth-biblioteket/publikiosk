@@ -34,6 +34,7 @@ public class LauncherScreen {
     private final TextView label, title, subtitle, footer, language;
     private final ImageView pattern, logo;
     private final View headRow;
+    private final LauncherFooter infoFooter;
     /** Pixlar per skisspixel: förstasidan ritas som skissen (1280 bred liggande, 800 stående) och skalas till skärmen */
     private float u = 1f;
     private boolean english = false;
@@ -51,6 +52,7 @@ public class LauncherScreen {
         pattern = activity.findViewById(R.id.launcher_pattern);
         logo = activity.findViewById(R.id.launcher_logo);
         headRow = activity.findViewById(R.id.launcher_head_row);
+        infoFooter = new LauncherFooter(activity);
         label.setTypeface(Fonts.bold(activity));
         title.setTypeface(Fonts.extraBold(activity));
         subtitle.setTypeface(Fonts.regular(activity));
@@ -65,29 +67,32 @@ public class LauncherScreen {
 
     public void show() {
         page.setVisibility(View.VISIBLE);
+        infoFooter.start();
     }
 
     public void hide() {
         page.setVisibility(View.GONE);
+        infoFooter.stop();
     }
 
     /**
      * Bygger sidan. Texter som är tomma får standardtexten på besökarens språk; en egen text (från
      * LAUNCHER_TITLE, LAUNCHER_SUBTITLE) visas som den är. Tom fottext döljer raden.
      */
-    public void configure(List<KioskApps.App> apps, Texts texts, boolean english) {
+    public void configure(List<KioskApps.App> apps, Texts texts, LauncherFooter.Config footerConfig, UrlPolicy policy, boolean english) {
         this.english = english;
         label.setText(english ? "KTH Library" : "KTH Biblioteket");
         title.setText(pick(english, texts.title, texts.titleEn, english ? "What do you need?" : "Vad vill du göra?"));
         subtitle.setText(pick(english, texts.subtitle, texts.subtitleEn, english ? "Tap a service to begin." : "Tryck på en tjänst för att börja."));
         String foot = pick(english, texts.footer, texts.footerEn, "");
         footer.setText(foot);
-        footer.setVisibility(foot.isEmpty() ? View.GONE : View.VISIBLE);
+        footer.setVisibility(foot.isEmpty() || footerConfig.hasPanel() ? View.GONE : View.VISIBLE);
         language.setText(english ? "Svenska" : "English");
 
         boolean portrait = activity.getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT;
         u = activity.getResources().getDisplayMetrics().widthPixels / (portrait ? 800f : 1280f);
         layoutHeader(portrait);
+        infoFooter.configure(footerConfig, policy, english, portrait, u);
         int cols = portrait ? 1 : 2;
         tiles.removeAllViews();
         tiles.setPadding(px(portrait ? 48 : 56), px(portrait ? 32 : 28), px(portrait ? 48 : 56), px(portrait ? 32 : 28));

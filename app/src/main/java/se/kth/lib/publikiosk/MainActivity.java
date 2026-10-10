@@ -101,6 +101,9 @@ public class MainActivity extends AppCompatActivity {
     /** HOME_MODE=launcher: besökaren väljer bland tjänsterna (APPS) på förstasidan innan en app öppnas */
     private String savedHomeMode = "app";
     private String savedLauncherTitle = "", savedLauncherSubtitle = "", savedLauncherFooter = "";
+    private String[] savedLauncherFields = new String[4];
+    private String savedLauncherMessage = "", savedLauncherMessageEn = "", savedLauncherMessageUrl = "", savedLauncherMessageStyle = "warning";
+    private int savedLauncherRefresh = 1;
     private String savedLauncherTitleEn = "", savedLauncherSubtitleEn = "", savedLauncherFooterEn = "";
     private boolean launcherMode = false;
     private java.util.List<KioskApps.App> launcherApps = new java.util.ArrayList<>();
@@ -1058,6 +1061,12 @@ public class MainActivity extends AppCompatActivity {
         savedLauncherTitleEn = sharedPreferences.getString("launchertitle_en", "");
         savedLauncherSubtitleEn = sharedPreferences.getString("launchersubtitle_en", "");
         savedLauncherFooterEn = sharedPreferences.getString("launcherfooter_en", "");
+        for (int i = 0; i < 4; i++) savedLauncherFields[i] = sharedPreferences.getString("launcherfield" + (i + 1), "");
+        savedLauncherMessage = sharedPreferences.getString("launchermessage", "");
+        savedLauncherMessageEn = sharedPreferences.getString("launchermessage_en", "");
+        savedLauncherMessageUrl = sharedPreferences.getString("launchermessageurl", "");
+        savedLauncherMessageStyle = sharedPreferences.getString("launchermessagestyle", "warning");
+        savedLauncherRefresh = sharedPreferences.getInt("launcherrefresh", 1);
         savedStartLabel = sharedPreferences.getString("startlabel", "");
         savedStartIcon = sharedPreferences.getString("starticon", "house");
         savedIdleWarning = sharedPreferences.getInt("idlewarning", 10);
@@ -1114,7 +1123,10 @@ public class MainActivity extends AppCompatActivity {
         if (launcher == null) return;
         if (launcherMode) {
             launcher.configure(launcherApps, new LauncherScreen.Texts(savedLauncherTitle, savedLauncherTitleEn,
-                    savedLauncherSubtitle, savedLauncherSubtitleEn, savedLauncherFooter, savedLauncherFooterEn), uiEnglish);
+                    savedLauncherSubtitle, savedLauncherSubtitleEn, savedLauncherFooter, savedLauncherFooterEn),
+                    new LauncherFooter.Config(savedLauncherFields, savedLauncherMessage, savedLauncherMessageEn,
+                            savedLauncherMessageUrl, savedLauncherMessageStyle, savedLauncherRefresh),
+                    newUrlPolicy(), uiEnglish);
         } else if (launcher.isShown()) {
             launcher.hide();
             chrome.setLauncherVisible(false);
