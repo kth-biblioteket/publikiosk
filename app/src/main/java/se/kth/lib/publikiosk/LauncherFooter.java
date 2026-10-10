@@ -71,10 +71,10 @@ public class LauncherFooter {
     /** Inställningarna för nederkanten, från publicomtools */
     public static final class Config {
         final List<Field> fields = new ArrayList<>();
-        final String message, messageEn, messageUrl, style;
+        final String message, messageEn, messageUrl, style, icon;
         final int refreshMinutes;
 
-        public Config(String[] fieldLines, String message, String messageEn, String messageUrl, String style, int refreshMinutes) {
+        public Config(String[] fieldLines, String message, String messageEn, String messageUrl, String style, int refreshMinutes, String icon) {
             for (String line : fieldLines) {
                 Field f = Field.parse(line);
                 if (f != null && fields.size() < MAX_FIELDS) fields.add(f);
@@ -84,6 +84,7 @@ public class LauncherFooter {
             this.messageUrl = messageUrl == null ? "" : messageUrl;
             this.style = "alert".equals(style) ? "alert" : "warning";
             this.refreshMinutes = Math.max(1, Math.min(60, refreshMinutes));
+            this.icon = icon == null || icon.isEmpty() ? "info" : icon;
         }
 
         boolean hasPanel() {
@@ -107,7 +108,7 @@ public class LauncherFooter {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Map<String, Cached> cache = new HashMap<>();
-    private Config config = new Config(new String[0], "", "", "", "warning", 1);
+    private Config config = new Config(new String[0], "", "", "", "warning", 1, "info");
     private UrlPolicy policy;
     private boolean english, portrait, running;
     private float u = 1f;
@@ -247,13 +248,17 @@ public class LauncherFooter {
         message.setTextColor(alert ? Color.WHITE : Color.parseColor("#4A3200"));
         message.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(portrait ? 20 : 22));
         message.setPadding(px(portrait ? 48 : 56), px(12), px(portrait ? 48 : 56), px(12));
-        // Samma "i" för alla grader, färgen visar graden
-        android.graphics.drawable.Drawable info = activity.getDrawable(R.drawable.ic_lucide_info).mutate();
-        int size = px(portrait ? 26 : 28);
-        info.setBounds(0, 0, size, size);
-        info.setTint(alert ? Color.WHITE : Color.parseColor("#4A3200"));
-        message.setCompoundDrawablesRelative(info, null, null, null);
-        message.setCompoundDrawablePadding(px(14));
+        // Ikonen väljs i inställningen (LAUNCHER_MESSAGE_ICON); färgen visar graden
+        if (config.icon.equals("none")) {
+            message.setCompoundDrawablesRelative(null, null, null, null);
+        } else {
+            android.graphics.drawable.Drawable ic = activity.getDrawable(KioskApps.tileIcon(config.icon)).mutate();
+            int size = px(portrait ? 26 : 28);
+            ic.setBounds(0, 0, size, size);
+            ic.setTint(alert ? Color.WHITE : Color.parseColor("#4A3200"));
+            message.setCompoundDrawablesRelative(ic, null, null, null);
+            message.setCompoundDrawablePadding(px(14));
+        }
         message.setGravity(Gravity.CENTER_VERTICAL);
         message.setVisibility(View.VISIBLE);
     }

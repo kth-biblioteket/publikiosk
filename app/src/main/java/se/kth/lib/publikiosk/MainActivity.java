@@ -102,7 +102,7 @@ public class MainActivity extends AppCompatActivity {
     private String savedHomeMode = "app";
     private String savedLauncherTitle = "", savedLauncherSubtitle = "", savedLauncherFooter = "";
     private String[] savedLauncherFields = new String[4];
-    private String savedLauncherMessage = "", savedLauncherMessageEn = "", savedLauncherMessageUrl = "", savedLauncherMessageStyle = "warning";
+    private String savedLauncherMessage = "", savedLauncherMessageEn = "", savedLauncherMessageUrl = "", savedLauncherMessageStyle = "warning", savedLauncherMessageIcon = "info";
     private int savedLauncherRefresh = 1;
     private String savedLauncherTitleEn = "", savedLauncherSubtitleEn = "", savedLauncherFooterEn = "";
     private boolean launcherMode = false;
@@ -1066,6 +1066,7 @@ public class MainActivity extends AppCompatActivity {
         savedLauncherMessageEn = sharedPreferences.getString("launchermessage_en", "");
         savedLauncherMessageUrl = sharedPreferences.getString("launchermessageurl", "");
         savedLauncherMessageStyle = sharedPreferences.getString("launchermessagestyle", "warning");
+        savedLauncherMessageIcon = sharedPreferences.getString("launchermessageicon", "info");
         savedLauncherRefresh = sharedPreferences.getInt("launcherrefresh", 1);
         savedStartLabel = sharedPreferences.getString("startlabel", "");
         savedStartIcon = sharedPreferences.getString("starticon", "house");
@@ -1125,7 +1126,7 @@ public class MainActivity extends AppCompatActivity {
             launcher.configure(launcherApps, new LauncherScreen.Texts(savedLauncherTitle, savedLauncherTitleEn,
                     savedLauncherSubtitle, savedLauncherSubtitleEn, savedLauncherFooter, savedLauncherFooterEn),
                     new LauncherFooter.Config(savedLauncherFields, savedLauncherMessage, savedLauncherMessageEn,
-                            savedLauncherMessageUrl, savedLauncherMessageStyle, savedLauncherRefresh),
+                            savedLauncherMessageUrl, savedLauncherMessageStyle, savedLauncherRefresh, savedLauncherMessageIcon),
                     newUrlPolicy(), uiEnglish);
         } else if (launcher.isShown()) {
             launcher.hide();
