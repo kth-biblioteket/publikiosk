@@ -234,8 +234,9 @@ public class LauncherFooter {
             Field f = valueFields.get(i);
             valueViews.get(i).setText(f.type.equals("text") ? f.value : fresh(f.value, "–"));
         }
-        String text = config.messageUrl.isEmpty() ? "" : fresh(config.messageUrl, "");
-        if (text.isEmpty()) text = english && !config.messageEn.isEmpty() ? config.messageEn : config.message;
+        // En tom text från adressen döljer raden; inget svar (eller för gammalt) ger den fasta texten
+        String text = config.messageUrl.isEmpty() ? null : fresh(config.messageUrl, null);
+        if (text == null) text = english && !config.messageEn.isEmpty() ? config.messageEn : config.message;
         if (text.isEmpty()) {
             message.setVisibility(View.GONE);
             return;
