@@ -82,7 +82,7 @@ public class LauncherFooter {
             this.message = message == null ? "" : message;
             this.messageEn = messageEn == null ? "" : messageEn;
             this.messageUrl = messageUrl == null ? "" : messageUrl;
-            this.style = "alert".equals(style) ? "alert" : "warning";
+            this.style = "alert".equals(style) || "info".equals(style) ? style : "warning";
             this.refreshMinutes = Math.max(1, Math.min(60, refreshMinutes));
             this.icon = icon == null || icon.isEmpty() ? "info" : icon;
         }
@@ -243,9 +243,21 @@ public class LauncherFooter {
             return;
         }
         boolean alert = config.style.equals("alert");
+        boolean info = config.style.equals("info");
+        int fg = alert ? Color.WHITE : info ? Color.parseColor("#000061") : Color.parseColor("#4A3200");
         message.setText(text);
-        message.setBackgroundColor(alert ? Color.parseColor("#B3261E") : Color.parseColor("#FFF3D6"));
-        message.setTextColor(alert ? Color.WHITE : Color.parseColor("#4A3200"));
+        if (info) {
+            // Blå: KTH:s ljusblå med en kant upptill
+            android.graphics.drawable.LayerDrawable bg = new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[]{
+                    new android.graphics.drawable.ColorDrawable(Color.parseColor("#DEF0FF")),
+                    new android.graphics.drawable.ColorDrawable(Color.parseColor("#004791"))});
+            bg.setLayerHeight(1, Math.max(2, px(2)));
+            bg.setLayerGravity(1, Gravity.TOP);
+            message.setBackground(bg);
+        } else {
+            message.setBackgroundColor(alert ? Color.parseColor("#B3261E") : Color.parseColor("#FFF3D6"));
+        }
+        message.setTextColor(fg);
         message.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(portrait ? 20 : 22));
         message.setPadding(px(portrait ? 48 : 56), px(12), px(portrait ? 48 : 56), px(12));
         // Ikonen väljs i inställningen (LAUNCHER_MESSAGE_ICON); färgen visar graden
@@ -255,7 +267,7 @@ public class LauncherFooter {
             android.graphics.drawable.Drawable ic = activity.getDrawable(KioskApps.tileIcon(config.icon)).mutate();
             int size = px(portrait ? 26 : 28);
             ic.setBounds(0, 0, size, size);
-            ic.setTint(alert ? Color.WHITE : Color.parseColor("#4A3200"));
+            ic.setTint(fg);
             message.setCompoundDrawablesRelative(ic, null, null, null);
             message.setCompoundDrawablePadding(px(14));
         }
