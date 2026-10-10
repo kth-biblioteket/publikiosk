@@ -3,12 +3,17 @@ package se.kth.lib.publikiosk;
 import android.net.Uri;
 import android.util.Log;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Fler webbappar på en enhet. START_URL är hem-appen; APPS listar de övriga, en per post:
- * "Namn|https://adress/|ikon|område|beskrivning|namn_en|beskrivning_en". Allt utom namn och adress är
+ * "Namn|https://adress/|ikon|område|beskrivning|namn_en|beskrivning_en", eller en JSON-lista (se parse)
+ * när texterna innehåller | , " eller radbrytning. Allt utom namn och adress är
  * valfritt. Området är som APP_SCOPE (värd och sökväg); tomt betyder adressens värd och sökväg som
  * katalog. Beskrivningen visas på förstasidan (HOME_MODE=launcher), och namn_en/beskrivning_en när
  * besökaren valt engelska (tomma: de svenska). I förstasidesläget är APPS alla tjänster och
@@ -52,36 +57,78 @@ final class KioskApps {
     private KioskApps() {
     }
 
-    /** Poster åtskilda med radbrytning (eller komma, utan radbrytning). Ogiltiga poster hoppas över. */
+    /**
+     * Två former. En JSON-lista, när någon text innehåller | , " eller radbrytning:
+     * [{"name":"Sök","url":"https://…","icon":"search","scope":"","desc":"…","nameEn":"…","descEn":"…"}].
+     * Annars en post per rad (eller komma, utan radbrytning), som äldre värden. Ogiltiga poster hoppas
+     * över; går JSON-listan inte att läsa används den radbaserade tolkningen.
+     */
     static List<App> parse(String raw) {
+        if (raw == null || raw.trim().isEmpty()) return new ArrayList<>();
+        if (raw.trim().startsWith("[")) {
+            List<App> json = parseJson(raw.trim());
+            if (json != null) return json;
+        }
+        return parseLines(raw);
+    }
+
+    private static List<App> parseJson(String raw) {
+        try {
+            JSONArray array = new JSONArray(raw);
+            List<App> apps = new ArrayList<>();
+            for (int i = 0; i < array.length(); i++) {
+                JSONObject o = array.optJSONObject(i);
+                if (o == null) {
+                    Log.w(TAG, "Post " + i + " i APPS är inte ett objekt, hoppas över");
+                    continue;
+                }
+                if (!add(apps, o.optString("name", "").trim(), o.optString("url", "").trim(),
+                        o.optString("icon", "").trim(), o.optString("scope", "").trim(),
+                        o.optString("desc", "").trim(), o.optString("nameEn", "").trim(),
+                        o.optString("descEn", "").trim(), o.toString())) break;
+            }
+            return apps;
+        } catch (JSONException e) {
+            Log.w(TAG, "APPS ser ut som JSON men går inte att läsa, tolkas som rader", e);
+            return null;
+        }
+    }
+
+    private static List<App> parseLines(String raw) {
         List<App> apps = new ArrayList<>();
-        if (raw == null || raw.trim().isEmpty()) return apps;
         // En post per rad (som publicomtools sparar den). Utan radbrytning: komma, som äldre värden
         // (och då kan en beskrivning inte innehålla komma)
         String[] entries = raw.contains("\n") ? raw.split("\\r?\\n") : raw.split(",");
         for (String entry : entries) {
             if (entry.trim().isEmpty()) continue;
             String[] parts = entry.split("\\|", -1);
-            String label = parts[0].trim();
-            String url = parts.length > 1 ? parts[1].trim() : "";
-            String icon = parts.length > 2 ? parts[2].trim() : "";
-            String scopeText = parts.length > 3 ? parts[3].trim() : "";
-            String desc = parts.length > 4 ? parts[4].trim() : "";
-            String labelEn = parts.length > 5 ? parts[5].trim() : "";
-            String descEn = parts.length > 6 ? parts[6].trim() : "";
-            if (label.isEmpty() || !url.startsWith("https://") || Uri.parse(url).getHost() == null) {
-                Log.w(TAG, "Ogiltig post i APPS hoppas över: " + entry.trim());
-                continue;
-            }
-            KioskChrome.Scope scope = KioskChrome.Scope.parse(scopeText);
-            if (scope == null) scope = KioskChrome.Scope.fromStartUrl(url);
-            if (apps.size() >= MAX_APPS) {
-                Log.w(TAG, "För många appar i APPS, " + label + " och resten hoppas över");
-                break;
-            }
-            apps.add(new App(label, url, icon, scope, desc, labelEn, descEn));
+            if (!add(apps, parts[0].trim(),
+                    parts.length > 1 ? parts[1].trim() : "",
+                    parts.length > 2 ? parts[2].trim() : "",
+                    parts.length > 3 ? parts[3].trim() : "",
+                    parts.length > 4 ? parts[4].trim() : "",
+                    parts.length > 5 ? parts[5].trim() : "",
+                    parts.length > 6 ? parts[6].trim() : "",
+                    entry.trim())) break;
         }
         return apps;
+    }
+
+    /** Lägger till en post om den är giltig. Returnerar false när listan är full (resten hoppas över). */
+    private static boolean add(List<App> apps, String label, String url, String icon, String scopeText,
+                               String desc, String labelEn, String descEn, String source) {
+        if (label.isEmpty() || !url.startsWith("https://") || Uri.parse(url).getHost() == null) {
+            Log.w(TAG, "Ogiltig post i APPS hoppas över: " + source);
+            return true;
+        }
+        if (apps.size() >= MAX_APPS) {
+            Log.w(TAG, "För många appar i APPS, " + label + " och resten hoppas över");
+            return false;
+        }
+        KioskChrome.Scope scope = KioskChrome.Scope.parse(scopeText);
+        if (scope == null) scope = KioskChrome.Scope.fromStartUrl(url);
+        apps.add(new App(label, url, icon, scope, desc, labelEn, descEn));
+        return true;
     }
 
     /** Värdarna som apparna ligger på, för listan över tillåtna webbplatser */
