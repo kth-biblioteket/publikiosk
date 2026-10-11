@@ -14,8 +14,11 @@ import org.json.JSONObject;
  * Hem, nya inställningar …); den inaktiva tiden på slutet räknas inte. Inga adresser eller text,
  * bara tider och hur många sidor besökaren gick till.
  *
- * Ett besök kräver minst två tryck med minst två sekunders mellanrum: ett ensamt tryck (någon
- * nuddar skärmen i förbifarten) räknas inte. Tryck i inställningsmenyn räknas inte heller.
+ * Ett besök kräver minst tre tryck och minst tio sekunder: ett ensamt tryck (någon nuddar skärmen i
+ * förbifarten) eller en kort testkörning räknas inte. Tryck i inställningsmenyn räknas inte heller.
+ *
+ * Hem avslutar inte besöket direkt: kommer nästa tryck inom 15 sekunder räknas det som samma besök
+ * (någon byter tjänst), annars sparas besöket med Hem som skäl.
  *
  * Avslutade besök köas i SharedPreferences och skickas med statusrapporten (StatusReporter), som
  * tar bort dem när publicomtools svarat visitsAck. En och samma instans för hela appen, så att ett
@@ -28,8 +31,10 @@ public final class VisitLog {
     private static final String KEY_QUEUE = "queue";
     /** Utan nät i flera dagar: behåll bara de senaste */
     private static final int MAX_QUEUED = 500;
-    private static final int MIN_TAPS = 2;
-    private static final long MIN_DURATION_MS = 2_000;
+    private static final int MIN_TAPS = 3;
+    private static final long MIN_DURATION_MS = 10_000;
+    /** Nästa tryck så här snart efter Hem hör till samma besök (någon byter tjänst), inte till ett nytt */
+    private static final long MERGE_MS = 15_000;
 
     private static VisitLog instance;
 
@@ -38,6 +43,10 @@ public final class VisitLog {
     private long lastActivityAt = 0;
     private int pages = 0;
     private int taps = 0;
+    /** Ett besök som avslutats med Hem och väntar på att se om det fortsätter */
+    private boolean held = false;
+    private long heldStart = 0, heldLast = 0;
+    private int heldPages = 0, heldTaps = 0;
 
     public static synchronized VisitLog get(Context context) {
         if (instance == null) instance = new VisitLog(context.getApplicationContext());
@@ -54,10 +63,19 @@ public final class VisitLog {
      */
     public synchronized void activity(boolean newTap) {
         long now = System.currentTimeMillis();
+        flushHeldIfExpired(now);
         if (startedAt == 0) {
-            startedAt = now;
-            pages = 0;
-            taps = 0;
+            if (held) {
+                // Fortsättning på besöket som Hem avslutade för en stund sedan
+                startedAt = heldStart;
+                pages = heldPages;
+                taps = heldTaps;
+                held = false;
+            } else {
+                startedAt = now;
+                pages = 0;
+                taps = 0;
+            }
         }
         if (newTap) taps++;
         lastActivityAt = now;
@@ -86,18 +104,40 @@ public final class VisitLog {
     /** Besöket är slut: idle, home, config, reboot eller crash */
     public synchronized void end(String reason) {
         if (startedAt == 0) return;
-        if (taps < MIN_TAPS || lastActivityAt - startedAt < MIN_DURATION_MS) {
-            Log.d(TAG, "Ignorerade " + taps + " tryck (inget besök)");
+        if ("home".equals(reason)) {
+            // Väntar och ser om besöket fortsätter (se MERGE_MS)
+            held = true;
+            heldStart = startedAt;
+            heldLast = Math.max(startedAt, lastActivityAt);
+            heldPages = pages;
+            heldTaps = taps;
             reset();
+            return;
+        }
+        save(startedAt, lastActivityAt, pages, taps, reason);
+        reset();
+    }
+
+    /** Ett besök som väntat på fortsättning i mer än MERGE_MS sparas som det är, med Hem som skäl */
+    private void flushHeldIfExpired(long now) {
+        if (held && now - heldLast > MERGE_MS) {
+            held = false;
+            save(heldStart, heldLast, heldPages, heldTaps, "home");
+        }
+    }
+
+    private void save(long start, long last, int pageCount, int tapCount, String reason) {
+        if (tapCount < MIN_TAPS || last - start < MIN_DURATION_MS) {
+            Log.d(TAG, "Ignorerade " + tapCount + " tryck (inget besök)");
             return;
         }
         try {
             JSONArray queue = queue();
             JSONObject visit = new JSONObject();
-            visit.put("start", startedAt / 1000);
-            visit.put("end", Math.max(startedAt, lastActivityAt) / 1000);
+            visit.put("start", start / 1000);
+            visit.put("end", Math.max(start, last) / 1000);
             visit.put("reason", reason);
-            visit.put("pages", pages);
+            visit.put("pages", pageCount);
             queue.put(visit);
             JSONArray kept = new JSONArray();
             for (int i = Math.max(0, queue.length() - MAX_QUEUED); i < queue.length(); i++) kept.put(queue.get(i));
@@ -105,11 +145,11 @@ public final class VisitLog {
         } catch (JSONException e) {
             Log.w(TAG, "Besöket kunde inte sparas", e);
         }
-        reset();
     }
 
     /** Besöken som väntar på att skickas (en kopia) */
     public synchronized JSONArray pending() {
+        flushHeldIfExpired(System.currentTimeMillis());
         return queue();
     }
 
