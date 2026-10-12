@@ -51,6 +51,7 @@ public class LauncherScreen {
     /** Förstasidans sidor: svep sidledes och fäst på närmaste sida (en tjänst på två sidor, prickar under) */
     private final class Pager extends HorizontalScrollView {
         private int startX;
+        private long lastWheelAt = 0;
 
         Pager(Activity a) {
             super(a);
@@ -81,6 +82,22 @@ public class LauncherScreen {
                 goTo(Math.max(0, Math.min(pageCount - 1, target)), true);
             }
             return r;
+        }
+
+        /** Mushjul bläddrar en sida i taget (en enhet utan pekskärm): nedåt eller åt höger går framåt */
+        @Override
+        public boolean onGenericMotionEvent(MotionEvent e) {
+            if (e.getActionMasked() == MotionEvent.ACTION_SCROLL && pageCount > 1) {
+                float h = e.getAxisValue(MotionEvent.AXIS_HSCROLL), v = e.getAxisValue(MotionEvent.AXIS_VSCROLL);
+                float step = h != 0 ? h : -v;
+                long now = android.os.SystemClock.uptimeMillis();
+                if (step != 0 && now - lastWheelAt > 350) {
+                    lastWheelAt = now;
+                    goTo(Math.max(0, Math.min(pageCount - 1, pageNow + (step > 0 ? 1 : -1))), true);
+                }
+                return true;
+            }
+            return super.onGenericMotionEvent(e);
         }
 
         void goTo(int page, boolean smooth) {
