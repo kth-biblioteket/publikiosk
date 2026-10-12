@@ -10,6 +10,12 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
+import android.webkit.CookieManager;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.TextClock;
 import android.widget.TextView;
 
@@ -73,8 +79,17 @@ public class LauncherFooter {
         final List<Field> fields = new ArrayList<>();
         final String message, messageEn, messageUrl, style, icon;
         final int refreshMinutes;
+        /** En hel sida från en https-adress i stället för fälten (tom: inga), dess höjd i skisspixlar, och om skript och tryck tillåts */
+        final String htmlUrl;
+        final int htmlHeight;
+        final boolean htmlJs, htmlTouch;
 
-        public Config(String[] fieldLines, String message, String messageEn, String messageUrl, String style, int refreshMinutes, String icon) {
+        public Config(String[] fieldLines, String message, String messageEn, String messageUrl, String style, int refreshMinutes, String icon,
+                      String htmlUrl, int htmlHeight, boolean htmlJs, boolean htmlTouch) {
+            this.htmlUrl = htmlUrl != null && htmlUrl.startsWith("https://") ? htmlUrl : "";
+            this.htmlHeight = Math.max(40, Math.min(400, htmlHeight));
+            this.htmlJs = htmlJs;
+            this.htmlTouch = htmlTouch;
             for (String line : fieldLines) {
                 Field f = Field.parse(line);
                 if (f != null && fields.size() < MAX_FIELDS) fields.add(f);
@@ -87,8 +102,12 @@ public class LauncherFooter {
             this.icon = icon == null || icon.isEmpty() ? "info" : icon;
         }
 
+        boolean hasHtml() {
+            return !htmlUrl.isEmpty();
+        }
+
         boolean hasPanel() {
-            return !fields.isEmpty();
+            return !fields.isEmpty() || hasHtml();
         }
     }
 
@@ -105,10 +124,15 @@ public class LauncherFooter {
     private final Activity activity;
     private final LinearLayout panel;
     private final TextView message;
+    private final WebView html;
+    private boolean htmlFailed = false;
+    /** Det pågående försöket att ladda sidan har gått fel (Chromiums felsida räknas inte som en lyckad sida) */
+    private boolean htmlAttemptFailed = false;
+    private String htmlLoaded = "";
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Map<String, Cached> cache = new HashMap<>();
-    private Config config = new Config(new String[0], "", "", "", "warning", 1, "info");
+    private Config config = new Config(new String[0], "", "", "", "warning", 1, "info", "", 100, false, false);
     private UrlPolicy policy;
     private boolean english, portrait, running;
     private float u = 1f;
@@ -128,6 +152,8 @@ public class LauncherFooter {
         this.activity = activity;
         panel = activity.findViewById(R.id.launcher_info);
         message = activity.findViewById(R.id.launcher_message);
+        html = activity.findViewById(R.id.launcher_html);
+        setUpHtml();
         message.setTypeface(Fonts.regular(activity));
     }
 
@@ -161,7 +187,9 @@ public class LauncherFooter {
         valueViews.clear();
         valueFields.clear();
         panel.removeAllViews();
-        if (!config.hasPanel()) {
+        boolean showHtml = config.hasHtml() && !htmlFailed;
+        applyHtml(showHtml);
+        if (showHtml || config.fields.isEmpty()) {
             panel.setVisibility(View.GONE);
         } else {
             panel.setVisibility(View.VISIBLE);
@@ -282,6 +310,7 @@ public class LauncherFooter {
     }
 
     private void refresh() {
+        refreshHtml();
         List<String> urls = new ArrayList<>();
         for (Field f : config.fields) if (f.type.equals("url") && !urls.contains(f.value)) urls.add(f.value);
         if (!config.messageUrl.isEmpty() && !urls.contains(config.messageUrl)) urls.add(config.messageUrl);
@@ -295,6 +324,96 @@ public class LauncherFooter {
                     if (running) updateTexts();
                 });
             });
+        }
+    }
+
+    /**
+     * HTML-fotraden: en egen WebView som bara visar sidan. Den kan inte navigera (alla länkar och
+     * omdirigeringar nekas), har ingen brygga mot appen, inga filer eller blandat innehåll, och hämtar
+     * bara delresurser från tillåtna webbplatser. Tryck och skript är av om inte inställningarna tillåter.
+     */
+    private void setUpHtml() {
+        WebSettings ws = html.getSettings();
+        ws.setJavaScriptEnabled(false);
+        ws.setDomStorageEnabled(false);
+        ws.setAllowFileAccess(false);
+        ws.setAllowContentAccess(false);
+        ws.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+        ws.setSupportMultipleWindows(false);
+        ws.setUseWideViewPort(true);
+        ws.setLoadWithOverviewMode(false);
+        ws.setMediaPlaybackRequiresUserGesture(true);
+        html.setVerticalScrollBarEnabled(false);
+        html.setHorizontalScrollBarEnabled(false);
+        html.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        CookieManager.getInstance().setAcceptThirdPartyCookies(html, false);
+        html.setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                return true;
+            }
+
+            @Override
+            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                String url = request.getUrl().toString();
+                if (url.startsWith("data:") || (policy != null && policy.allows(url))) return null;
+                return new WebResourceResponse("text/plain", "utf-8", 403, "Forbidden", null, new java.io.ByteArrayInputStream(new byte[0]));
+            }
+
+            @Override
+            public void onReceivedError(WebView view, WebResourceRequest request, android.webkit.WebResourceError error) {
+                if (request.isForMainFrame()) {
+                    htmlFailed = true;
+                    htmlAttemptFailed = true;
+                    handler.post(LauncherFooter.this::build);
+                }
+            }
+
+            @Override
+            public void onReceivedHttpError(WebView view, WebResourceRequest request, WebResourceResponse errorResponse) {
+                if (request.isForMainFrame() && errorResponse.getStatusCode() >= 400) {
+                    htmlFailed = true;
+                    htmlAttemptFailed = true;
+                    handler.post(LauncherFooter.this::build);
+                }
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                if (htmlFailed && !htmlAttemptFailed && url != null && !url.startsWith("about:")) {
+                    htmlFailed = false;
+                    build();
+                }
+            }
+        });
+    }
+
+    private void applyHtml(boolean show) {
+        if (!show) {
+            html.setVisibility(View.GONE);
+            return;
+        }
+        html.getSettings().setJavaScriptEnabled(config.htmlJs);
+        html.getSettings().setDomStorageEnabled(config.htmlJs);
+        html.setOnTouchListener(config.htmlTouch ? null : (v, e) -> true);
+        html.setInitialScale(Math.max(1, Math.round(100 * u)));
+        html.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, px(config.htmlHeight)));
+        html.setVisibility(View.VISIBLE);
+    }
+
+    private void refreshHtml() {
+        if (!config.hasHtml()) {
+            if (!htmlLoaded.isEmpty()) {
+                html.loadUrl("about:blank");
+                htmlLoaded = "";
+            }
+            return;
+        }
+        if (policy == null || !policy.allows(config.htmlUrl)) return;
+        if (htmlLoaded.equals(config.htmlUrl)) html.reload();
+        else {
+            htmlLoaded = config.htmlUrl;
+            html.loadUrl(config.htmlUrl);
         }
     }
 

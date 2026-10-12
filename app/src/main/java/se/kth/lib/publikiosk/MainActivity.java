@@ -104,6 +104,9 @@ public class MainActivity extends AppCompatActivity {
     private String[] savedLauncherFields = new String[4];
     private String savedLauncherMessage = "", savedLauncherMessageEn = "", savedLauncherMessageUrl = "", savedLauncherMessageStyle = "warning", savedLauncherMessageIcon = "info";
     private int savedLauncherRefresh = 1;
+    private String savedLauncherHtmlUrl = "";
+    private int savedLauncherHtmlHeight = 100;
+    private boolean savedLauncherHtmlJs = false, savedLauncherHtmlTouch = false;
     private String savedLauncherTitleEn = "", savedLauncherSubtitleEn = "", savedLauncherFooterEn = "";
     private boolean launcherMode = false;
     private java.util.List<KioskApps.App> launcherApps = new java.util.ArrayList<>();
@@ -1077,6 +1080,10 @@ public class MainActivity extends AppCompatActivity {
         savedLauncherMessageStyle = sharedPreferences.getString("launchermessagestyle", "warning");
         savedLauncherMessageIcon = sharedPreferences.getString("launchermessageicon", "info");
         savedLauncherRefresh = sharedPreferences.getInt("launcherrefresh", 1);
+        savedLauncherHtmlUrl = sharedPreferences.getString("launcherhtmlurl", "");
+        savedLauncherHtmlHeight = sharedPreferences.getInt("launcherhtmlheight", 100);
+        savedLauncherHtmlJs = sharedPreferences.getBoolean("launcherhtmljs", false);
+        savedLauncherHtmlTouch = sharedPreferences.getBoolean("launcherhtmltouch", false);
         savedStartLabel = sharedPreferences.getString("startlabel", "");
         savedStartIcon = sharedPreferences.getString("starticon", "house");
         savedIdleWarning = sharedPreferences.getInt("idlewarning", 10);
@@ -1135,7 +1142,8 @@ public class MainActivity extends AppCompatActivity {
             launcher.configure(launcherApps, new LauncherScreen.Texts(savedLauncherTitle, savedLauncherTitleEn,
                     savedLauncherSubtitle, savedLauncherSubtitleEn, savedLauncherFooter, savedLauncherFooterEn),
                     new LauncherFooter.Config(savedLauncherFields, savedLauncherMessage, savedLauncherMessageEn,
-                            savedLauncherMessageUrl, savedLauncherMessageStyle, savedLauncherRefresh, savedLauncherMessageIcon),
+                            savedLauncherMessageUrl, savedLauncherMessageStyle, savedLauncherRefresh, savedLauncherMessageIcon,
+                            savedLauncherHtmlUrl, savedLauncherHtmlHeight, savedLauncherHtmlJs, savedLauncherHtmlTouch),
                     newUrlPolicy(), uiEnglish);
         } else if (launcher.isShown()) {
             launcher.hide();

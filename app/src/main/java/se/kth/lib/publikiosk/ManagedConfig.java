@@ -74,6 +74,10 @@ public final class ManagedConfig {
         changed |= putString(prefs, e, "launchermessagestyle", "alert".equals(messageStyle) || "info".equals(messageStyle) ? messageStyle : "warning");
         String messageIcon = values.optString("LAUNCHER_MESSAGE_ICON", "info").trim();
         changed |= putString(prefs, e, "launchermessageicon", messageIcon.isEmpty() ? "info" : messageIcon);
+        changed |= putString(prefs, e, "launcherhtmlurl", values.optString("LAUNCHER_HTML_URL", "").trim());
+        changed |= putInt(prefs, e, "launcherhtmlheight", intValue(values, "LAUNCHER_HTML_HEIGHT", 100, 40, 400));
+        changed |= putBoolean(prefs, e, "launcherhtmljs", bool(values, "LAUNCHER_HTML_JS", false));
+        changed |= putBoolean(prefs, e, "launcherhtmltouch", bool(values, "LAUNCHER_HTML_TOUCH", false));
         changed |= putInt(prefs, e, "launcherrefresh", intValue(values, "LAUNCHER_REFRESH", 1, 1, 60));
         changed |= putString(prefs, e, "apps", values.optString("APPS", "").trim());
         changed |= putString(prefs, e, "startlabel", values.optString("START_LABEL", "").trim());

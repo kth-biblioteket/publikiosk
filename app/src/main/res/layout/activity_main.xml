@@ -224,6 +224,13 @@
                 android:layout_height="wrap_content"
                 android:visibility="gone"/>
 
+            <WebView
+                android:id="@+id/launcher_html"
+                android:layout_width="match_parent"
+                android:layout_height="100dp"
+                android:background="@color/kth_light_blue"
+                android:visibility="gone"/>
+
             <LinearLayout
                 android:id="@+id/launcher_info"
                 android:layout_width="match_parent"
