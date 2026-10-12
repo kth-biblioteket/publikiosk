@@ -19,6 +19,7 @@ import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.GestureDetector;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewTreeObserver;
@@ -1007,6 +1008,34 @@ public class MainActivity extends AppCompatActivity {
             VisitLog.get(this).activity(ev.getActionMasked() == MotionEvent.ACTION_DOWN);
         }
         return super.dispatchTouchEvent(ev);
+    }
+
+    /**
+     * Mushjul och tangentbord är också aktivitet: utan det räknas en besökare som bara scrollar (en dator med mus
+     * i stället för pekskärm) som inaktiv, och appen går tillbaka till start mitt i läsningen.
+     */
+    @Override
+    public boolean dispatchGenericMotionEvent(MotionEvent ev) {
+        if (ev.getActionMasked() == MotionEvent.ACTION_SCROLL) {
+            lastTouchAt = System.currentTimeMillis();
+            lastActivityAt = lastTouchAt;
+            if (attract != null && attract.isShown()) {
+                attract.hide();
+                return true;
+            }
+            touchedSinceStart = true;
+            if (drawerLayout == null || !drawerLayout.isDrawerOpen(Gravity.LEFT)) VisitLog.get(this).activity(false);
+        }
+        return super.dispatchGenericMotionEvent(ev);
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        if (event.getAction() == KeyEvent.ACTION_DOWN) {
+            lastTouchAt = System.currentTimeMillis();
+            lastActivityAt = lastTouchAt;
+        }
+        return super.dispatchKeyEvent(event);
     }
 
     /**
