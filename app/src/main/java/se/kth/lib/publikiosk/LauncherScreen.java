@@ -357,7 +357,7 @@ public class LauncherScreen {
 
     private float textAvail(Plan p, float cw) {
         // Lite marginal: avrundning och teckenavstånd gör att texten annars kan bli en pixel för bred
-        return (p.wide ? cw - 2 * p.padH - p.iconD - p.gapD : cw - 2 * p.padH) * 0.96f - 2;
+        return (p.wide ? cw - 2 * p.padH - p.iconD - p.gapD : cw - 2 * p.padH) * 0.99f - 1;
     }
 
     private boolean nameFits(KioskApps.App app, Plan p, float cw) {
@@ -418,7 +418,13 @@ public class LauncherScreen {
         LinearLayout tile = new LinearLayout(activity);
         tile.setOrientation(wide ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
         tile.setGravity(wide ? Gravity.CENTER_VERTICAL : Gravity.CENTER);
-        tile.setBackgroundResource(R.drawable.launcher_tile_bg);
+        // Kortet som i Linux-kiosken: vitt, 2 px ram, radie 24 (skisspixlar, skalade till skärmen)
+        android.graphics.drawable.GradientDrawable card = new android.graphics.drawable.GradientDrawable();
+        card.setColor(0xFFFFFFFF);
+        card.setStroke(Math.max(1, px(2)), 0xFFDDE2E9);
+        card.setCornerRadius(px(24));
+        tile.setBackground(new android.graphics.drawable.RippleDrawable(
+                android.content.res.ColorStateList.valueOf(0x26004791), card, null));
         tile.setPadding(px(padH), px(padV), px(padH), px(padV));
         tile.setClickable(true);
         tile.setFocusable(true);
@@ -426,7 +432,7 @@ public class LauncherScreen {
         tile.setOnClickListener(v -> listener.open(app));
 
         int box = px(iconD);
-        FrameLayoutHolder icon = new FrameLayoutHolder(activity, KioskApps.tileIcon(app.icon), Math.round(box * 0.54f));
+        FrameLayoutHolder icon = new FrameLayoutHolder(activity, KioskApps.tileIcon(app.icon), Math.round(box * 0.54f), box);
         tile.addView(icon.box, new LinearLayout.LayoutParams(box, box));
 
         LinearLayout text = new LinearLayout(activity);
@@ -470,10 +476,14 @@ public class LauncherScreen {
     private static final class FrameLayoutHolder {
         final LinearLayout box;
 
-        FrameLayoutHolder(Activity activity, int iconRes, int iconPx) {
+        FrameLayoutHolder(Activity activity, int iconRes, int iconPx, int boxPx) {
             box = new LinearLayout(activity);
             box.setGravity(Gravity.CENTER);
-            box.setBackgroundResource(R.drawable.launcher_icon_bg);
+            // Rundad ruta (radie 25 % av sidan), inte en cirkel, som i Linux-kiosken
+            android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+            bg.setColor(activity.getColor(R.color.kth_light_blue));
+            bg.setCornerRadius(boxPx * 0.25f);
+            box.setBackground(bg);
             ImageView iv = new ImageView(activity);
             iv.setImageResource(iconRes);
             iv.setImageTintList(android.content.res.ColorStateList.valueOf(activity.getColor(R.color.kth_blue)));
