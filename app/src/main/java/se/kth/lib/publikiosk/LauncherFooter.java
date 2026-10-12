@@ -10,12 +10,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
-import android.webkit.CookieManager;
-import android.webkit.WebResourceRequest;
-import android.webkit.WebResourceResponse;
-import android.webkit.WebSettings;
 import android.webkit.WebView;
-import android.webkit.WebViewClient;
 import android.widget.TextClock;
 import android.widget.TextView;
 
@@ -125,10 +120,7 @@ public class LauncherFooter {
     private final LinearLayout panel;
     private final TextView message;
     private final WebView html;
-    private boolean htmlFailed = false;
-    /** Det pågående försöket att ladda sidan har gått fel (Chromiums felsida räknas inte som en lyckad sida) */
-    private boolean htmlAttemptFailed = false;
-    private String htmlLoaded = "";
+    private final SandboxedPage htmlPage;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Map<String, Cached> cache = new HashMap<>();
@@ -153,7 +145,22 @@ public class LauncherFooter {
         panel = activity.findViewById(R.id.launcher_info);
         message = activity.findViewById(R.id.launcher_message);
         html = activity.findViewById(R.id.launcher_html);
-        setUpHtml();
+        htmlPage = new SandboxedPage(html, new SandboxedPage.Host() {
+            @Override
+            public boolean allows(String url) {
+                return policy != null && policy.allows(url);
+            }
+
+            @Override
+            public void failed() {
+                handler.post(LauncherFooter.this::build);
+            }
+
+            @Override
+            public void recovered() {
+                build();
+            }
+        });
         message.setTypeface(Fonts.regular(activity));
     }
 
@@ -187,7 +194,7 @@ public class LauncherFooter {
         valueViews.clear();
         valueFields.clear();
         panel.removeAllViews();
-        boolean showHtml = config.hasHtml() && !htmlFailed;
+        boolean showHtml = config.hasHtml() && !htmlPage.hasFailed();
         applyHtml(showHtml);
         if (showHtml || config.fields.isEmpty()) {
             panel.setVisibility(View.GONE);
@@ -327,94 +334,19 @@ public class LauncherFooter {
         }
     }
 
-    /**
-     * HTML-fotraden: en egen WebView som bara visar sidan. Den kan inte navigera (alla länkar och
-     * omdirigeringar nekas), har ingen brygga mot appen, inga filer eller blandat innehåll, och hämtar
-     * bara delresurser från tillåtna webbplatser. Tryck och skript är av om inte inställningarna tillåter.
-     */
-    private void setUpHtml() {
-        WebSettings ws = html.getSettings();
-        ws.setJavaScriptEnabled(false);
-        ws.setDomStorageEnabled(false);
-        ws.setAllowFileAccess(false);
-        ws.setAllowContentAccess(false);
-        ws.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
-        ws.setSupportMultipleWindows(false);
-        ws.setUseWideViewPort(true);
-        ws.setLoadWithOverviewMode(false);
-        ws.setMediaPlaybackRequiresUserGesture(true);
-        html.setVerticalScrollBarEnabled(false);
-        html.setHorizontalScrollBarEnabled(false);
-        html.setOverScrollMode(View.OVER_SCROLL_NEVER);
-        CookieManager.getInstance().setAcceptThirdPartyCookies(html, false);
-        html.setWebViewClient(new WebViewClient() {
-            @Override
-            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                return true;
-            }
-
-            @Override
-            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-                String url = request.getUrl().toString();
-                if (url.startsWith("data:") || (policy != null && policy.allows(url))) return null;
-                return new WebResourceResponse("text/plain", "utf-8", 403, "Forbidden", null, new java.io.ByteArrayInputStream(new byte[0]));
-            }
-
-            @Override
-            public void onReceivedError(WebView view, WebResourceRequest request, android.webkit.WebResourceError error) {
-                if (request.isForMainFrame()) {
-                    htmlFailed = true;
-                    htmlAttemptFailed = true;
-                    handler.post(LauncherFooter.this::build);
-                }
-            }
-
-            @Override
-            public void onReceivedHttpError(WebView view, WebResourceRequest request, WebResourceResponse errorResponse) {
-                if (request.isForMainFrame() && errorResponse.getStatusCode() >= 400) {
-                    htmlFailed = true;
-                    htmlAttemptFailed = true;
-                    handler.post(LauncherFooter.this::build);
-                }
-            }
-
-            @Override
-            public void onPageFinished(WebView view, String url) {
-                if (htmlFailed && !htmlAttemptFailed && url != null && !url.startsWith("about:")) {
-                    htmlFailed = false;
-                    build();
-                }
-            }
-        });
-    }
-
     private void applyHtml(boolean show) {
         if (!show) {
             html.setVisibility(View.GONE);
             return;
         }
-        html.getSettings().setJavaScriptEnabled(config.htmlJs);
-        html.getSettings().setDomStorageEnabled(config.htmlJs);
-        html.setOnTouchListener(config.htmlTouch ? null : (v, e) -> true);
-        html.setInitialScale(Math.max(1, Math.round(100 * u)));
+        htmlPage.configure(config.htmlJs, config.htmlTouch, Math.round(100 * u));
         html.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, px(config.htmlHeight)));
         html.setVisibility(View.VISIBLE);
     }
 
     private void refreshHtml() {
-        if (!config.hasHtml()) {
-            if (!htmlLoaded.isEmpty()) {
-                html.loadUrl("about:blank");
-                htmlLoaded = "";
-            }
-            return;
-        }
-        if (policy == null || !policy.allows(config.htmlUrl)) return;
-        if (htmlLoaded.equals(config.htmlUrl)) html.reload();
-        else {
-            htmlLoaded = config.htmlUrl;
-            html.loadUrl(config.htmlUrl);
-        }
+        if (config.hasHtml()) htmlPage.load(config.htmlUrl);
+        else htmlPage.clear();
     }
 
     /** Första svaret som ren text, eller null vid fel. Inga omdirigeringar, så att svaret alltid kommer från den tillåtna värden. */

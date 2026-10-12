@@ -78,6 +78,10 @@ public final class ManagedConfig {
         changed |= putInt(prefs, e, "launcherhtmlheight", intValue(values, "LAUNCHER_HTML_HEIGHT", 100, 40, 400));
         changed |= putBoolean(prefs, e, "launcherhtmljs", bool(values, "LAUNCHER_HTML_JS", false));
         changed |= putBoolean(prefs, e, "launcherhtmltouch", bool(values, "LAUNCHER_HTML_TOUCH", false));
+        changed |= putString(prefs, e, "attracturl", values.optString("ATTRACT_URL", "").trim());
+        changed |= putInt(prefs, e, "attractafter", intValue(values, "ATTRACT_AFTER", 120, 0, 3600));
+        changed |= putBoolean(prefs, e, "attractjs", bool(values, "ATTRACT_JS", false));
+        changed |= putInt(prefs, e, "attractrefresh", intValue(values, "ATTRACT_REFRESH", 10, 1, 60));
         changed |= putInt(prefs, e, "launcherrefresh", intValue(values, "LAUNCHER_REFRESH", 1, 1, 60));
         changed |= putString(prefs, e, "apps", values.optString("APPS", "").trim());
         changed |= putString(prefs, e, "startlabel", values.optString("START_LABEL", "").trim());

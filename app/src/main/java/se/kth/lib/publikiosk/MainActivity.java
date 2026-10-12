@@ -107,6 +107,12 @@ public class MainActivity extends AppCompatActivity {
     private String savedLauncherHtmlUrl = "";
     private int savedLauncherHtmlHeight = 100;
     private boolean savedLauncherHtmlJs = false, savedLauncherHtmlTouch = false;
+    private String savedAttractUrl = "";
+    private int savedAttractAfter = 120, savedAttractRefresh = 10;
+    private boolean savedAttractJs = false;
+    private AttractScreen attract;
+    /** Första trycket tog bort attract loopen: resten av samma tryck går inte vidare */
+    private boolean swallowGesture = false;
     private String savedLauncherTitleEn = "", savedLauncherSubtitleEn = "", savedLauncherFooterEn = "";
     private boolean launcherMode = false;
     private java.util.List<KioskApps.App> launcherApps = new java.util.ArrayList<>();
@@ -222,6 +228,7 @@ public class MainActivity extends AppCompatActivity {
                 configureLauncher();
             }
         });
+        attract = new AttractScreen(this);
         // Sidan laddas om av sig själv när nätet kommer (t ex wifi efter en omstart)
         network = new NetworkWatcher(this, () -> {
             if (chrome.isErrorShown()) retryLoad();
@@ -630,6 +637,7 @@ public class MainActivity extends AppCompatActivity {
         chrome.setEnglish(uiEnglish);
         configureLauncher();
         launcher.show();
+        attract.start();
         chrome.setLauncherVisible(true);
         awaitingStart = false;
         pageLoaded = true;
@@ -681,6 +689,7 @@ public class MainActivity extends AppCompatActivity {
     private void openAppUrl(String url) {
         if (launcher != null && launcher.isShown()) {
             launcher.hide();
+            attract.stop();
             chrome.setLauncherVisible(false);
         }
         chrome.hideAll();
@@ -963,6 +972,11 @@ public class MainActivity extends AppCompatActivity {
                     if (!onStart || touchedSinceStart) returnToStart("idle");
                     else if (launcherMode && uiEnglish != "en".equals(savedLanguage)) resetLauncherLanguage();
                 }
+                // Förstasidan har stått orörd länge: attract loopen
+                if (launcherMode && launcher != null && launcher.isShown() && !busy && !attract.isShown()
+                        && attract.canShow() && idle >= attract.afterMillis()) {
+                    attract.show();
+                }
             } catch (NumberFormatException e) {
                 Log.w("publikiosk", "Ogiltig tidsgräns för inaktivitet", e);
             }
@@ -974,6 +988,18 @@ public class MainActivity extends AppCompatActivity {
     public boolean dispatchTouchEvent(MotionEvent ev) {
         lastTouchAt = System.currentTimeMillis();
         lastActivityAt = lastTouchAt;
+        // Attract loopen: första trycket tar bort den, går inte vidare och räknas inte som ett besök
+        if (attract != null && attract.isShown()) {
+            if (ev.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                attract.hide();
+                swallowGesture = true;
+            }
+            return true;
+        }
+        if (swallowGesture) {
+            if (ev.getActionMasked() == MotionEvent.ACTION_UP || ev.getActionMasked() == MotionEvent.ACTION_CANCEL) swallowGesture = false;
+            return true;
+        }
         touchedSinceStart = true;
         // Tryck i inställningsmenyn är personal, inget besök
         if (drawerLayout == null || !drawerLayout.isDrawerOpen(Gravity.LEFT)) {
@@ -1084,6 +1110,10 @@ public class MainActivity extends AppCompatActivity {
         savedLauncherHtmlHeight = sharedPreferences.getInt("launcherhtmlheight", 100);
         savedLauncherHtmlJs = sharedPreferences.getBoolean("launcherhtmljs", false);
         savedLauncherHtmlTouch = sharedPreferences.getBoolean("launcherhtmltouch", false);
+        savedAttractUrl = sharedPreferences.getString("attracturl", "");
+        savedAttractAfter = sharedPreferences.getInt("attractafter", 120);
+        savedAttractJs = sharedPreferences.getBoolean("attractjs", false);
+        savedAttractRefresh = sharedPreferences.getInt("attractrefresh", 10);
         savedStartLabel = sharedPreferences.getString("startlabel", "");
         savedStartIcon = sharedPreferences.getString("starticon", "house");
         savedIdleWarning = sharedPreferences.getInt("idlewarning", 10);
@@ -1145,9 +1175,15 @@ public class MainActivity extends AppCompatActivity {
                             savedLauncherMessageUrl, savedLauncherMessageStyle, savedLauncherRefresh, savedLauncherMessageIcon,
                             savedLauncherHtmlUrl, savedLauncherHtmlHeight, savedLauncherHtmlJs, savedLauncherHtmlTouch),
                     newUrlPolicy(), uiEnglish);
-        } else if (launcher.isShown()) {
-            launcher.hide();
-            chrome.setLauncherVisible(false);
+            attract.configure(savedAttractUrl, savedAttractAfter, savedAttractJs, savedAttractRefresh, newUrlPolicy(),
+                    getResources().getConfiguration().orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT,
+                    getResources().getDisplayMetrics().widthPixels);
+        } else {
+            attract.stop();
+            if (launcher.isShown()) {
+                launcher.hide();
+                chrome.setLauncherVisible(false);
+            }
         }
     }
 
