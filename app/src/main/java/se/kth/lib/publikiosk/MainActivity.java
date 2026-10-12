@@ -209,7 +209,7 @@ public class MainActivity extends AppCompatActivity {
         launcher = new LauncherScreen(this, new LauncherScreen.Listener() {
             @Override
             public void open(KioskApps.App app) {
-                openAppUrl(app.url);
+                openAppUrl(app.url(uiEnglish));
             }
 
             @Override
@@ -1088,7 +1088,7 @@ public class MainActivity extends AppCompatActivity {
                 launcherMode = true;
                 launcherApps = la;
             } else if (la.size() == 1) {
-                savedUrl = la.get(0).url;
+                savedUrl = la.get(0).url("en".equals(savedLanguage));
                 savedApps = "";
             }
         }

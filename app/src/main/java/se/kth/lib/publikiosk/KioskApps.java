@@ -12,11 +12,12 @@ import java.util.List;
 
 /**
  * Fler webbappar på en enhet. START_URL är hem-appen; APPS listar de övriga, en per post:
- * "Namn|https://adress/|ikon|område|beskrivning|namn_en|beskrivning_en", eller en JSON-lista (se parse)
+ * "Namn|https://adress/|ikon|område|beskrivning|namn_en|beskrivning_en|adress_en", eller en JSON-lista (se parse)
  * när texterna innehåller | , " eller radbrytning. Allt utom namn och adress är
  * valfritt. Området är som APP_SCOPE (värd och sökväg); tomt betyder adressens värd och sökväg som
  * katalog. Beskrivningen visas på förstasidan (HOME_MODE=launcher), och namn_en/beskrivning_en när
- * besökaren valt engelska (tomma: de svenska). I förstasidesläget är APPS alla tjänster och
+ * besökaren valt engelska (tomma: de svenska). adress_en är adressen som öppnas på engelska, t ex
+ * https://adress/?lang=en (tom: samma adress); den måste vara https och ligga på en tillåten webbplats. I förstasidesläget är APPS alla tjänster och
  * START_URL används inte.
  */
 final class KioskApps {
@@ -33,8 +34,13 @@ final class KioskApps {
         final String desc;
         final String labelEn;
         final String descEn;
+        /** Adressen när besökaren valt engelska (tom: samma adress). Tjänster anger språk på olika sätt, så den skrivs ut i sin helhet. */
+        final String urlEn;
+        /** Området för den engelska adressen, när det inte är samma som det angivna (null: området gäller båda) */
+        final KioskChrome.Scope scopeEn;
 
-        App(String label, String url, String icon, KioskChrome.Scope scope, String desc, String labelEn, String descEn) {
+        App(String label, String url, String icon, KioskChrome.Scope scope, String desc, String labelEn, String descEn,
+            String urlEn, KioskChrome.Scope scopeEn) {
             this.label = label;
             this.url = url;
             this.icon = icon;
@@ -42,6 +48,18 @@ final class KioskApps {
             this.desc = desc;
             this.labelEn = labelEn;
             this.descEn = descEn;
+            this.urlEn = urlEn;
+            this.scopeEn = scopeEn;
+        }
+
+        /** Adressen på besökarens språk; saknas den engelska används den vanliga */
+        String url(boolean english) {
+            return english && !urlEn.isEmpty() ? urlEn : url;
+        }
+
+        /** Ligger sidan inne i den här tjänsten, på något av språken? */
+        boolean contains(String page) {
+            return scope.contains(page) || (scopeEn != null && scopeEn.contains(page));
         }
 
         /** Namnet på besökarens språk; saknas det engelska används det svenska */
@@ -85,7 +103,7 @@ final class KioskApps {
                 if (!add(apps, o.optString("name", "").trim(), o.optString("url", "").trim(),
                         o.optString("icon", "").trim(), o.optString("scope", "").trim(),
                         o.optString("desc", "").trim(), o.optString("nameEn", "").trim(),
-                        o.optString("descEn", "").trim(), o.toString())) break;
+                        o.optString("descEn", "").trim(), o.optString("urlEn", "").trim(), o.toString())) break;
             }
             return apps;
         } catch (JSONException e) {
@@ -109,6 +127,7 @@ final class KioskApps {
                     parts.length > 4 ? parts[4].trim() : "",
                     parts.length > 5 ? parts[5].trim() : "",
                     parts.length > 6 ? parts[6].trim() : "",
+                    parts.length > 7 ? parts[7].trim() : "",
                     entry.trim())) break;
         }
         return apps;
@@ -116,7 +135,7 @@ final class KioskApps {
 
     /** Lägger till en post om den är giltig. Returnerar false när listan är full (resten hoppas över). */
     private static boolean add(List<App> apps, String label, String url, String icon, String scopeText,
-                               String desc, String labelEn, String descEn, String source) {
+                               String desc, String labelEn, String descEn, String urlEn, String source) {
         if (label.isEmpty() || !url.startsWith("https://") || Uri.parse(url).getHost() == null) {
             Log.w(TAG, "Ogiltig post i APPS hoppas över: " + source);
             return true;
@@ -125,9 +144,17 @@ final class KioskApps {
             Log.w(TAG, "För många appar i APPS, " + label + " och resten hoppas över");
             return false;
         }
+        if (!urlEn.isEmpty() && (!urlEn.startsWith("https://") || Uri.parse(urlEn).getHost() == null)) {
+            Log.w(TAG, "Ogiltig engelsk adress i APPS ignoreras: " + source);
+            urlEn = "";
+        }
         KioskChrome.Scope scope = KioskChrome.Scope.parse(scopeText);
-        if (scope == null) scope = KioskChrome.Scope.fromStartUrl(url);
-        apps.add(new App(label, url, icon, scope, desc, labelEn, descEn));
+        KioskChrome.Scope scopeEn = null;
+        if (scope == null) {
+            scope = KioskChrome.Scope.fromStartUrl(url);
+            if (!urlEn.isEmpty()) scopeEn = KioskChrome.Scope.fromStartUrl(urlEn);
+        }
+        apps.add(new App(label, url, icon, scope, desc, labelEn, descEn, urlEn, scopeEn));
         return true;
     }
 
@@ -137,6 +164,8 @@ final class KioskApps {
         for (App app : apps) {
             String host = Uri.parse(app.url).getHost();
             if (host != null) sb.append(',').append(host);
+            String hostEn = app.urlEn.isEmpty() ? null : Uri.parse(app.urlEn).getHost();
+            if (hostEn != null && !hostEn.equals(host)) sb.append(',').append(hostEn);
         }
         return sb.toString();
     }

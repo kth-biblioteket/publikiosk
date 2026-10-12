@@ -133,7 +133,7 @@ En enhet som styrs från publicomtools kan ha fler webbappar som besökaren väx
 (`START_URL`) är hem-appen, och `APPS` listar de andra. De ställs bara in i publicomtools, inte i menyn.
 
 - **Startsidans namn** och **Startsidans ikon** (`START_LABEL`, `START_ICON`): namnet och ikonen på hem-appens knapp. Tomt namn ger *Hem*, standardikonen är ett hus.
-- **Webbappar** (`APPS`): i publicomtools redigeras de i en egen vy med ett kort per app (namn, adress, ikon och avancerat område) som du lägger till, tar bort och drar i ordning. Högst fem (sex med förstasida). Värdarna blir automatiskt tillåtna webbplatser. Under ytan sparas en app per rad som `Namn|https://adress/|ikon|område|beskrivning|namn_en|beskrivning_en`, där allt utom namn och adress är valfritt. Appen läser radbrytning som avgränsare, och komma om det inte finns någon radbrytning. Innehåller någon text tecknen `|`, komma, `"` eller radbrytning sparar publicomtools i stället en JSON-lista (`[{"name":"…","url":"https://…","icon":"…","scope":"…","desc":"…","nameEn":"…","descEn":"…"}]`), som kräver 3.14.0.
+- **Webbappar** (`APPS`): i publicomtools redigeras de i en egen vy med ett kort per app (namn, adress, ikon och avancerat område) som du lägger till, tar bort och drar i ordning. Högst fem (sex med förstasida). Värdarna blir automatiskt tillåtna webbplatser. Under ytan sparas en app per rad som `Namn|https://adress/|ikon|område|beskrivning|namn_en|beskrivning_en|adress_en`, där allt utom namn och adress är valfritt. Appen läser radbrytning som avgränsare, och komma om det inte finns någon radbrytning. Innehåller någon text tecknen `|`, komma, `"` eller radbrytning sparar publicomtools i stället en JSON-lista (`[{"name":"…","url":"https://…","icon":"…","scope":"…","desc":"…","nameEn":"…","descEn":"…","urlEn":"https://…"}]`), som kräver 3.14.0.
 - **Område** anges som i *Appens område* (värd och sökväg). Tomt betyder adressens värd och sökväg som katalog.
 - **Ikon** är något av namnen `house`, `search`, `map`, `map-pin`, `calendar`, `book-open`, `library`, `info`, `circle-help`, `printer`, `monitor`, `user`, `clock` och `graduation-cap` (Lucide). Utan ikon visas bara namnet.
 
@@ -164,6 +164,7 @@ någon app öppnas, i stället för att starta i en app:
   Tomma svenska texter får standardtext (Vad vill du göra?, Tryck på en tjänst för att börja). En tom engelsk
   text blir den svenska texten, och finns ingen sådan, standardtexten på engelska.
 - Varje tjänst kan ha ett engelskt namn och en engelsk beskrivning. Saknas de visas de svenska.
+- Varje tjänst kan också ha en **engelsk adress** (`adress_en`, `urlEn` i JSON): den öppnas i stället för den vanliga när besökaren valt English, t ex `https://tjänst.kth.se/?lang=en`. Den måste vara https och ligga på en tillåten webbplats (värden läggs till automatiskt), och är den ogiltig eller tom öppnas den vanliga adressen. Området gäller båda adresserna om det anges; annars räknas båda adressernas värd och sökväg som inne i tjänsten. Kräver 3.16.0. Med flera appar i ramen (utan förstasida) används `LANGUAGE`.
 - Knappen **English** byter språk på förstasidan och ramen tills enheten går tillbaka till förstasidan.
   Webbapparna själva byter inte språk.
 - Har enheten bara en tjänst hoppar den över förstasidan och öppnar den direkt. Utan tjänster beter sig

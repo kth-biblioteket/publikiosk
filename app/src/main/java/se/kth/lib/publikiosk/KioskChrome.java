@@ -144,7 +144,7 @@ public class KioskChrome {
     }
 
     private KioskApps.App launcherApp(String url) {
-        for (KioskApps.App a : launcherApps) if (a.scope.contains(url)) return a;
+        for (KioskApps.App a : launcherApps) if (a.contains(url)) return a;
         return null;
     }
 
@@ -157,7 +157,7 @@ public class KioskChrome {
     private int activeApp(String url) {
         if (insideApp(url)) return 0;
         for (int i = 0; i < apps.size(); i++) {
-            if (apps.get(i).scope.contains(url)) return i + 1;
+            if (apps.get(i).contains(url)) return i + 1;
         }
         return -1;
     }
@@ -196,7 +196,7 @@ public class KioskChrome {
             b.setLayoutParams(lp);
             b.setOnClickListener(v -> {
                 if (index == 0) actions.home();
-                else actions.openApp(apps.get(index - 1).url);
+                else actions.openApp(apps.get(index - 1).url(english));
             });
             navApps.addView(b);
             appButtons.add(b);
