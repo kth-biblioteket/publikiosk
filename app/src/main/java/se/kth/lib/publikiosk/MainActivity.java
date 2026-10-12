@@ -463,7 +463,7 @@ public class MainActivity extends AppCompatActivity {
 
         // Ladda url i webview, utan något kvar från förra sessionen
         clearSessionIfEnabled();
-        if (launcherMode) showLauncher();
+        if (launcherMode) showLauncher(false);
         else myWeb.loadUrl(savedUrl);
         isUserNavigation = false;
         isInitialLoading = true;
@@ -622,8 +622,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /** Förstasidan visas, och webbsidan under den töms. Språket går tillbaka till det inställda. */
-    private void showLauncher() {
-        uiEnglish = "en".equals(savedLanguage);
+    private void showLauncher(boolean keepLanguage) {
+        if (!keepLanguage) uiEnglish = "en".equals(savedLanguage);
         chrome.setEnglish(uiEnglish);
         configureLauncher();
         launcher.show();
@@ -645,13 +645,21 @@ public class MainActivity extends AppCompatActivity {
         touchedSinceStart = false;
         clearSessionIfEnabled();
         if (launcherMode) {
-            showLauncher();
+            // Hem är samma besökare på väg till en annan tjänst: språket behålls. Efter inaktivitet börjar en ny besökare.
+            showLauncher("home".equals(reason));
             return;
         }
         awaitingStart = true;
         myWeb.loadUrl(savedUrl);
         // clearHistory gäller först när nästa sida laddats
         clearHistorySoon();
+    }
+
+    /** Förstasidan har stått orörd efter Hem: nästa besökare får det inställda språket */
+    private void resetLauncherLanguage() {
+        uiEnglish = "en".equals(savedLanguage);
+        chrome.setEnglish(uiEnglish);
+        configureLauncher();
     }
 
     /** Rensar historiken efter att sidan börjat laddas, och visar sedan Tillbaka som avstängd i ramen */
@@ -950,6 +958,7 @@ public class MainActivity extends AppCompatActivity {
                 }
                 if (!busy && idle >= limit) {
                     if (!onStart || touchedSinceStart) returnToStart("idle");
+                    else if (launcherMode && uiEnglish != "en".equals(savedLanguage)) resetLauncherLanguage();
                 }
             } catch (NumberFormatException e) {
                 Log.w("publikiosk", "Ogiltig tidsgräns för inaktivitet", e);
