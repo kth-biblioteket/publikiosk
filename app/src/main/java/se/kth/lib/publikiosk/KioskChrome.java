@@ -116,6 +116,8 @@ public class KioskChrome {
         mode = navigation == null || navigation.isEmpty() ? "auto" : navigation;
         english = "en".equals(language);
         apps = KioskApps.parse(appsRaw);
+        // I ramen (utan förstasida) får det plats hem-appen och fem till
+        if (apps.size() > KioskApps.TAB_APPS) apps = new java.util.ArrayList<>(apps.subList(0, KioskApps.TAB_APPS));
         homeLabel = startLabel == null ? "" : startLabel.trim();
         homeIcon = startIcon == null || startIcon.trim().isEmpty() ? "house" : startIcon.trim();
         applyScale();

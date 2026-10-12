@@ -133,7 +133,7 @@ En enhet som styrs från publicomtools kan ha fler webbappar som besökaren väx
 (`START_URL`) är hem-appen, och `APPS` listar de andra. De ställs bara in i publicomtools, inte i menyn.
 
 - **Startsidans namn** och **Startsidans ikon** (`START_LABEL`, `START_ICON`): namnet och ikonen på hem-appens knapp. Tomt namn ger *Hem*, standardikonen är ett hus.
-- **Webbappar** (`APPS`): i publicomtools redigeras de i en egen vy med ett kort per app (namn, adress, ikon och avancerat område) som du lägger till, tar bort och drar i ordning. Högst fem (sex med förstasida). Värdarna blir automatiskt tillåtna webbplatser. Under ytan sparas en app per rad som `Namn|https://adress/|ikon|område|beskrivning|namn_en|beskrivning_en|adress_en`, där allt utom namn och adress är valfritt. Appen läser radbrytning som avgränsare, och komma om det inte finns någon radbrytning. Innehåller någon text tecknen `|`, komma, `"` eller radbrytning sparar publicomtools i stället en JSON-lista (`[{"name":"…","url":"https://…","icon":"…","scope":"…","desc":"…","nameEn":"…","descEn":"…","urlEn":"https://…"}]`), som kräver 3.14.0.
+- **Webbappar** (`APPS`): i publicomtools redigeras de i en egen vy med ett kort per app (namn, adress, ikon och avancerat område) som du lägger till, tar bort och drar i ordning. Högst fem (tolv med förstasida). Värdarna blir automatiskt tillåtna webbplatser. Under ytan sparas en app per rad som `Namn|https://adress/|ikon|område|beskrivning|namn_en|beskrivning_en|adress_en`, där allt utom namn och adress är valfritt. Appen läser radbrytning som avgränsare, och komma om det inte finns någon radbrytning. Innehåller någon text tecknen `|`, komma, `"` eller radbrytning sparar publicomtools i stället en JSON-lista (`[{"name":"…","url":"https://…","icon":"…","scope":"…","desc":"…","nameEn":"…","descEn":"…","urlEn":"https://…"}]`), som kräver 3.14.0.
 - **Område** anges som i *Appens område* (värd och sökväg). Tomt betyder adressens värd och sökväg som katalog.
 - **Ikon** är något av namnen `house`, `search`, `map`, `map-pin`, `calendar`, `book-open`, `library`, `info`, `circle-help`, `printer`, `monitor`, `user`, `clock` och `graduation-cap` (Lucide). Utan ikon visas bara namnet.
 
@@ -155,7 +155,7 @@ Med **Börja med** (`HOME_MODE`) satt till *Förstasida med tjänster* visar enh
 någon app öppnas, i stället för att starta i en app:
 
 - Förstasidan visar ett stort kort per tjänst (namn, ikon och en kort beskrivning). Tjänsterna är `APPS`,
-  och startsidan (`START_URL`) används inte. Högst sex tjänster.
+  och startsidan (`START_URL`) används inte. Högst tolv tjänster. `LAUNCHER_PER_PAGE` (2, 4, 6, 8, 10 eller 12, standard 4) bestämmer hur många som visas samtidigt: korten anpassar kolumner, rader och storlek efter antalet och skärmen (rutor eller breda rader, beskrivningen döljs när korten blir små). Finns det fler tjänster blir det flera sidor med prickar under, som besökaren sveper mellan. Startsida går tillbaka till första sidan.
 - Ett tryck på ett kort öppnar tjänsten. Då visas ramen med Tillbaka, tjänstens namn och **Startsida**, som
   tar besökaren tillbaka till förstasidan (och rensar sessionen).
 - Efter inaktivitet går enheten tillbaka till förstasidan, med samma varning "Är du kvar?" som förut.

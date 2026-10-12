@@ -82,6 +82,9 @@ public final class ManagedConfig {
         changed |= putInt(prefs, e, "attractafter", intValue(values, "ATTRACT_AFTER", 120, 0, 3600));
         changed |= putBoolean(prefs, e, "attractjs", bool(values, "ATTRACT_JS", false));
         changed |= putInt(prefs, e, "attractrefresh", intValue(values, "ATTRACT_REFRESH", 10, 1, 60));
+        int perPage = intValue(values, "LAUNCHER_PER_PAGE", 4, 2, 12);
+        if (perPage % 2 != 0) perPage = 4;
+        changed |= putInt(prefs, e, "launcherperpage", perPage);
         changed |= putInt(prefs, e, "launcherrefresh", intValue(values, "LAUNCHER_REFRESH", 1, 1, 60));
         changed |= putString(prefs, e, "apps", values.optString("APPS", "").trim());
         changed |= putString(prefs, e, "startlabel", values.optString("START_LABEL", "").trim());

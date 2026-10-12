@@ -23,8 +23,9 @@ import java.util.List;
 final class KioskApps {
 
     private static final String TAG = "KioskApps";
-    /** Högst sex appar: i ramen hem-appen och fem till, på förstasidan sex tjänster */
-    static final int MAX_APPS = 6;
+    /** Högst tolv tjänster (på förstasidan, flera sidor); i ramen hem-appen och högst fem till (se TAB_APPS) */
+    static final int MAX_APPS = 12;
+    static final int TAB_APPS = 5;
 
     static final class App {
         final String label;

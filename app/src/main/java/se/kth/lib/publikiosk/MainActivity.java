@@ -104,6 +104,7 @@ public class MainActivity extends AppCompatActivity {
     private String[] savedLauncherFields = new String[4];
     private String savedLauncherMessage = "", savedLauncherMessageEn = "", savedLauncherMessageUrl = "", savedLauncherMessageStyle = "warning", savedLauncherMessageIcon = "info";
     private int savedLauncherRefresh = 1;
+    private int savedLauncherPerPage = 4;
     private String savedLauncherHtmlUrl = "";
     private int savedLauncherHtmlHeight = 100;
     private boolean savedLauncherHtmlJs = false, savedLauncherHtmlTouch = false;
@@ -1106,6 +1107,7 @@ public class MainActivity extends AppCompatActivity {
         savedLauncherMessageStyle = sharedPreferences.getString("launchermessagestyle", "warning");
         savedLauncherMessageIcon = sharedPreferences.getString("launchermessageicon", "info");
         savedLauncherRefresh = sharedPreferences.getInt("launcherrefresh", 1);
+        savedLauncherPerPage = sharedPreferences.getInt("launcherperpage", 4);
         savedLauncherHtmlUrl = sharedPreferences.getString("launcherhtmlurl", "");
         savedLauncherHtmlHeight = sharedPreferences.getInt("launcherhtmlheight", 100);
         savedLauncherHtmlJs = sharedPreferences.getBoolean("launcherhtmljs", false);
@@ -1169,7 +1171,7 @@ public class MainActivity extends AppCompatActivity {
     private void configureLauncher() {
         if (launcher == null) return;
         if (launcherMode) {
-            launcher.configure(launcherApps, new LauncherScreen.Texts(savedLauncherTitle, savedLauncherTitleEn,
+            launcher.configure(launcherApps, savedLauncherPerPage, new LauncherScreen.Texts(savedLauncherTitle, savedLauncherTitleEn,
                     savedLauncherSubtitle, savedLauncherSubtitleEn, savedLauncherFooter, savedLauncherFooterEn),
                     new LauncherFooter.Config(savedLauncherFields, savedLauncherMessage, savedLauncherMessageEn,
                             savedLauncherMessageUrl, savedLauncherMessageStyle, savedLauncherRefresh, savedLauncherMessageIcon,
