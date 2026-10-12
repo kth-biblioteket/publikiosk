@@ -127,8 +127,11 @@ public class LauncherScreen {
         tiles.addView(pager, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
         tiles.addView(dots, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         // Raderna byggs när ytan har fått sin storlek (och om den ändras)
+        // (efter layoutpasset: att ändra vyerna mitt i det gör att de nya inte alltid blir uppmätta)
         pager.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
-            if (r - l != builtW || b - t != builtH) rebuild();
+            if (r - l != builtW || b - t != builtH) pager.post(() -> {
+                if (pager.getWidth() != builtW || pager.getHeight() != builtH) rebuild();
+            });
         });
         label.setTypeface(Fonts.bold(activity));
         title.setTypeface(Fonts.extraBold(activity));
@@ -225,6 +228,22 @@ public class LauncherScreen {
             LinearLayout pg = new LinearLayout(activity);
             pg.setOrientation(LinearLayout.VERTICAL);
             pg.setPadding(px(padX), px(padY), px(padX), px(padY));
+            // Alla kort på en sida får samma textstorlek: den minsta som något av dem behövde
+            // och samma form: behöver något kort ikonen ovanför texten får alla det
+            int level = 0;
+            for (int i = p * per; i < Math.min(n, (p + 1) * per); i++) level = Math.max(level, Math.min(2, plan(apps.get(i), cw, ch, 0).level));
+            java.util.List<Plan> plans = new java.util.ArrayList<>();
+            float minName = 99, minDesc = 99;
+            for (int i = p * per; i < Math.min(n, (p + 1) * per); i++) {
+                Plan pl = plan(apps.get(i), cw, ch, level);
+                plans.add(pl);
+                minName = Math.min(minName, pl.nameS);
+                minDesc = Math.min(minDesc, pl.descS);
+            }
+            for (Plan pl : plans) {
+                pl.nameS = minName;
+                pl.descS = minDesc;
+            }
             for (int r = 0; r < rows; r++) {
                 LinearLayout line = new LinearLayout(activity);
                 line.setOrientation(LinearLayout.HORIZONTAL);
@@ -235,7 +254,7 @@ public class LauncherScreen {
                     int i = p * per + r * cols + c;
                     LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
                     if (c > 0) clp.leftMargin = px(gap);
-                    if (i < n && i < (p + 1) * per) line.addView(tile(apps.get(i), cw, ch), clp);
+                    if (i < n && i < (p + 1) * per) line.addView(tile(apps.get(i), plans.get(i - p * per)), clp);
                     else line.addView(new View(activity), clp);
                 }
             }
@@ -244,6 +263,7 @@ public class LauncherScreen {
         pager.removeAllViews();
         pager.addView(row, new FrameLayout.LayoutParams(wPx * pageCount, ViewGroup.LayoutParams.MATCH_PARENT));
         buildDots();
+        pager.requestLayout();
         pageNow = Math.min(pageNow, pageCount - 1);
         pager.post(() -> pager.goTo(pageNow, false));
     }
@@ -295,28 +315,92 @@ public class LauncherScreen {
         return fallback;
     }
 
-    /** Ett kort i en cell på cw × ch skisspixlar: breda rader (ikonen till vänster) eller rutor (ikonen ovanför), som i Linux-kiosken */
-    private View tile(KioskApps.App app, float cw, float ch) {
-        boolean wide = cw / ch >= 2f;
+    /** Så ett kort ritas: bred rad eller ruta, och måtten i skisspixlar */
+    private static final class Plan {
+        boolean wide, showDesc;
+        /** 0 standard, 1 mindre ikon (breda rader), 2 ikonen ovanför (rutor), 3 också mindre text */
+        int level;
         float iconD, nameS, descS, gapD, padH, padV;
-        boolean showDesc;
-        if (wide) {
-            iconD = clamp(36, Math.min(ch - 24, 0.30f * cw), 112);
-            nameS = clamp(17, 0.26f * ch, 32);
-            descS = clamp(13, 0.17f * ch, 20);
-            gapD = clamp(12, 0.12f * ch, 28);
-            padH = clamp(14, 0.10f * ch, 36);
-            padV = 0;
-            showDesc = ch > 90;
+    }
+
+    /** Standardmåtten för en cell (som i Linux-kiosken): breda rader eller rutor efter cellens form */
+    private static Plan basePlan(float cw, float ch, boolean forceColumn) {
+        Plan p = new Plan();
+        p.wide = !forceColumn && cw / ch >= 2f;
+        if (p.wide) {
+            p.iconD = clamp(36, Math.min(ch - 24, 0.30f * cw), 112);
+            p.nameS = clamp(17, 0.26f * ch, 32);
+            p.descS = clamp(13, 0.17f * ch, 20);
+            p.gapD = clamp(12, 0.12f * ch, 28);
+            p.padH = clamp(14, 0.10f * ch, 36);
+            p.padV = 0;
+            p.showDesc = ch > 90;
         } else {
-            iconD = clamp(36, Math.min(0.36f * ch, 0.40f * cw), 112);
-            nameS = clamp(16, Math.min(0.12f * ch, 0.095f * cw), 30);
-            descS = clamp(12, Math.min(0.07f * ch, 0.055f * cw), 18);
-            gapD = clamp(6, 0.04f * ch, 14);
-            padH = 12;
-            padV = 8;
-            showDesc = ch > 150;
+            p.iconD = clamp(36, Math.min(0.36f * ch, 0.40f * cw), 112);
+            p.nameS = clamp(16, Math.min(0.12f * ch, 0.095f * cw), 30);
+            p.descS = clamp(12, Math.min(0.07f * ch, 0.055f * cw), 18);
+            p.gapD = clamp(6, 0.04f * ch, 14);
+            p.padH = 12;
+            p.padV = 8;
+            p.showDesc = ch > 150;
         }
+        return p;
+    }
+
+    private static float longestWord(String text, android.graphics.Paint paint, float size) {
+        paint.setTextSize(size);
+        float max = 0;
+        for (String w : text.split("[\\s\\-]+")) max = Math.max(max, paint.measureText(w));
+        return max;
+    }
+
+    private boolean fits(KioskApps.App app, Plan p, float cw) {
+        float avail = (p.wide ? cw - 2 * p.padH - p.iconD - p.gapD : cw - 2 * p.padH) - 2;
+        android.graphics.Paint paint = new android.graphics.Paint();
+        paint.setTypeface(Fonts.extraBold(activity));
+        if (longestWord(app.label(english), paint, p.nameS) > avail) return false;
+        if (p.showDesc && !app.desc(english).isEmpty()) {
+            paint.setTypeface(Fonts.regular(activity));
+            return longestWord(app.desc(english), paint, p.descS) <= avail;
+        }
+        return true;
+    }
+
+    /**
+     * Ryms inte orden i kortet trappas det ner i steg, som i Linux-kiosken: mindre ikon och luft (breda
+     * rader), sedan ikonen ovanför texten (rutor), sedan mindre text (minst 12 px). Ett ord som ändå inte
+     * ryms bryts av radbytet.
+     */
+    private Plan plan(KioskApps.App app, float cw, float ch, int minLevel) {
+        Plan p = basePlan(cw, ch, false);
+        boolean wasWide = p.wide;
+        if (minLevel <= 0 && fits(app, p, cw)) return p;
+        if (wasWide) {
+            Plan q = basePlan(cw, ch, false);
+            q.iconD = Math.min(q.iconD, 64);
+            q.padH = Math.min(q.padH, 14);
+            q.gapD = Math.min(q.gapD, 12);
+            q.level = 1;
+            if (minLevel <= 1 && fits(app, q, cw)) return q;
+            p = basePlan(cw, ch, true);
+            p.level = 2;
+            if (fits(app, p, cw)) return p;
+        } else {
+            p.level = 2;
+        }
+        while ((p.nameS > 12 || p.descS > 12) && !fits(app, p, cw)) {
+            p.nameS = Math.max(12, p.nameS - 0.5f);
+            p.descS = Math.max(12, p.descS - 0.5f);
+            p.level = 3;
+        }
+        return p;
+    }
+
+    /** Ett kort i en cell på cw × ch skisspixlar: breda rader (ikonen till vänster) eller rutor (ikonen ovanför), som i Linux-kiosken */
+    private View tile(KioskApps.App app, Plan p) {
+        boolean wide = p.wide;
+        float iconD = p.iconD, nameS = p.nameS, descS = p.descS, gapD = p.gapD, padH = p.padH, padV = p.padV;
+        boolean showDesc = p.showDesc;
         LinearLayout tile = new LinearLayout(activity);
         tile.setOrientation(wide ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
         tile.setGravity(wide ? Gravity.CENTER_VERTICAL : Gravity.CENTER);
