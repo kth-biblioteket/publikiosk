@@ -254,7 +254,7 @@ public class LauncherScreen {
                     int i = p * per + r * cols + c;
                     LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
                     if (c > 0) clp.leftMargin = px(gap);
-                    if (i < n && i < (p + 1) * per) line.addView(tile(apps.get(i), plans.get(i - p * per)), clp);
+                    if (i < n && i < (p + 1) * per) line.addView(tile(apps.get(i), plans.get(i - p * per), ch), clp);
                     else line.addView(new View(activity), clp);
                 }
             }
@@ -347,57 +347,71 @@ public class LauncherScreen {
         return p;
     }
 
-    private static float longestWord(String text, android.graphics.Paint paint, float size) {
-        paint.setTextSize(size);
+    /** Det längsta ordets bredd i skisspixlar, mätt som det ritas: i hela skärmpixlar med skärmens skala */
+    private float longestWord(String text, android.graphics.Paint paint, float size) {
+        paint.setTextSize(Math.max(1, Math.round(size * u)));
         float max = 0;
         for (String w : text.split("[\\s\\-]+")) max = Math.max(max, paint.measureText(w));
-        return max;
+        return max / u;
     }
 
-    private boolean fits(KioskApps.App app, Plan p, float cw) {
-        float avail = (p.wide ? cw - 2 * p.padH - p.iconD - p.gapD : cw - 2 * p.padH) - 2;
+    private float textAvail(Plan p, float cw) {
+        // Lite marginal: avrundning och teckenavstånd gör att texten annars kan bli en pixel för bred
+        return (p.wide ? cw - 2 * p.padH - p.iconD - p.gapD : cw - 2 * p.padH) * 0.96f - 2;
+    }
+
+    private boolean nameFits(KioskApps.App app, Plan p, float cw) {
         android.graphics.Paint paint = new android.graphics.Paint();
         paint.setTypeface(Fonts.extraBold(activity));
-        if (longestWord(app.label(english), paint, p.nameS) > avail) return false;
-        if (p.showDesc && !app.desc(english).isEmpty()) {
-            paint.setTypeface(Fonts.regular(activity));
-            return longestWord(app.desc(english), paint, p.descS) <= avail;
-        }
-        return true;
+        return longestWord(app.label(english), paint, p.nameS) <= textAvail(p, cw);
+    }
+
+    private boolean descFits(KioskApps.App app, Plan p, float cw) {
+        if (!p.showDesc || app.desc(english).isEmpty()) return true;
+        android.graphics.Paint paint = new android.graphics.Paint();
+        paint.setTypeface(Fonts.regular(activity));
+        return longestWord(app.desc(english), paint, p.descS) <= textAvail(p, cw);
+    }
+
+    /** Minskar namnet och beskrivningen (var för sig) tills det längsta ordet ryms, som mest ned till 12 px */
+    private void shrinkToFit(KioskApps.App app, Plan p, float cw) {
+        for (int i = 0; i < 24 && p.nameS > 12 && !nameFits(app, p, cw); i++) p.nameS = Math.max(12, p.nameS * 0.93f);
+        for (int i = 0; i < 24 && p.descS > 12 && !descFits(app, p, cw); i++) p.descS = Math.max(12, p.descS * 0.93f);
     }
 
     /**
-     * Ryms inte orden i kortet trappas det ner i steg, som i Linux-kiosken: mindre ikon och luft (breda
-     * rader), sedan ikonen ovanför texten (rutor), sedan mindre text (minst 12 px). Ett ord som ändå inte
-     * ryms bryts av radbytet.
+     * Som i Linux-kiosken: ryms inte orden krymper först texten (till 75 % av sin storlek), sedan blir ikonen
+     * mindre med mindre luft och texten får krympa mer (breda rader, ikonen till vänster, beskrivningen kvar),
+     * och sist hamnar ikonen ovanför texten (rutor), där texten får krympa ned till 12 px. Ett ord som ändå
+     * inte ryms bryts av radbytet.
      */
     private Plan plan(KioskApps.App app, float cw, float ch, int minLevel) {
-        Plan p = basePlan(cw, ch, false);
-        boolean wasWide = p.wide;
-        if (minLevel <= 0 && fits(app, p, cw)) return p;
-        if (wasWide) {
-            Plan q = basePlan(cw, ch, false);
-            q.iconD = Math.min(q.iconD, 64);
-            q.padH = Math.min(q.padH, 14);
-            q.gapD = Math.min(q.gapD, 12);
-            q.level = 1;
-            if (minLevel <= 1 && fits(app, q, cw)) return q;
-            p = basePlan(cw, ch, true);
-            p.level = 2;
-            if (fits(app, p, cw)) return p;
-        } else {
-            p.level = 2;
+        Plan base = basePlan(cw, ch, false);
+        if (base.wide) {
+            if (minLevel <= 0) {
+                Plan p = basePlan(cw, ch, false);
+                shrinkToFit(app, p, cw);
+                if (p.nameS >= 0.75f * base.nameS) return p;
+            }
+            if (minLevel <= 1) {
+                Plan q = basePlan(cw, ch, false);
+                q.iconD = Math.min(q.iconD, 64);
+                q.padH = Math.min(q.padH, 14);
+                q.gapD = Math.min(q.gapD, 12);
+                q.level = 1;
+                shrinkToFit(app, q, cw);
+                // Breda rader behålls (ikonen till vänster, beskrivningen kvar) så länge namnet går att läsa
+                if (nameFits(app, q, cw) && q.nameS >= 13) return q;
+            }
         }
-        while ((p.nameS > 12 || p.descS > 12) && !fits(app, p, cw)) {
-            p.nameS = Math.max(12, p.nameS - 0.5f);
-            p.descS = Math.max(12, p.descS - 0.5f);
-            p.level = 3;
-        }
-        return p;
+        Plan s = basePlan(cw, ch, true);
+        s.level = 2;
+        shrinkToFit(app, s, cw);
+        return s;
     }
 
     /** Ett kort i en cell på cw × ch skisspixlar: breda rader (ikonen till vänster) eller rutor (ikonen ovanför), som i Linux-kiosken */
-    private View tile(KioskApps.App app, Plan p) {
+    private View tile(KioskApps.App app, Plan p, float ch) {
         boolean wide = p.wide;
         float iconD = p.iconD, nameS = p.nameS, descS = p.descS, gapD = p.gapD, padH = p.padH, padV = p.padV;
         boolean showDesc = p.showDesc;
@@ -433,14 +447,17 @@ public class LauncherScreen {
         name.setMaxLines(2);
         name.setEllipsize(android.text.TextUtils.TruncateAt.END);
         text.addView(name);
-        if (showDesc && !app.desc(english).isEmpty()) {
+        // Beskrivningen får så många rader som ryms i kortets höjd (högst tre); ryms ingen rad döljs den
+        float textH = ch - 2 * Math.max(padV, 8);
+        int descLines = Math.max(0, Math.min(3, (int) Math.floor((textH - nameS * 1.15f - 6) / (descS * 1.35f))));
+        if (showDesc && descLines > 0 && !app.desc(english).isEmpty()) {
             TextView desc = new TextView(activity);
             desc.setText(app.desc(english));
             desc.setTextColor(activity.getColor(R.color.nav_muted));
             desc.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(descS));
             desc.setTypeface(Fonts.regular(activity));
             desc.setGravity(wide ? Gravity.START : Gravity.CENTER_HORIZONTAL);
-            desc.setMaxLines(3);
+            desc.setMaxLines(descLines);
             desc.setEllipsize(android.text.TextUtils.TruncateAt.END);
             LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             dlp.topMargin = px(wide ? 6 : 4);
