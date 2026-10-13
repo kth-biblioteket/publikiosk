@@ -204,7 +204,8 @@ public class KioskChrome {
         for (int i = 0; i < total; i++) {
             final int index = i;
             NavButton b = new NavButton(activity);
-            b.setIcon(KioskApps.icon(activity, apps.get(i).icon));
+            // Ingen eller okänd ikon: informationsikonen, som i Linux-kiosken
+            b.setIcon(KioskApps.tileIcon(activity, apps.get(i).icon));
             b.setOnClickListener(v -> {
                 selected = index;
                 if (index == 0) actions.home();
@@ -247,9 +248,9 @@ public class KioskChrome {
         navBack.setIcon(R.drawable.ic_lucide_chevron_left);
         setSize(navBack, stacked ? s(88) : ViewGroup.LayoutParams.WRAP_CONTENT, h);
         navHome.setStyle(stacked, u);
-        android.graphics.drawable.Drawable homeDrawable = launcherMode() ? null : KioskApps.icon(activity, homeIcon);
-        if (homeDrawable != null) navHome.setIcon(homeDrawable);
-        else navHome.setIcon(R.drawable.ic_lucide_house);
+        // START_ICON tom: huset; okänt namn: informationsikonen
+        if (launcherMode()) navHome.setIcon(R.drawable.ic_lucide_house);
+        else navHome.setIcon(KioskApps.tileIcon(activity, homeIcon));
         navHome.setActive(true);
         navHome.setMinimumWidth(stacked ? s(88) : 0);
         setSize(navHome, ViewGroup.LayoutParams.WRAP_CONTENT, h);
