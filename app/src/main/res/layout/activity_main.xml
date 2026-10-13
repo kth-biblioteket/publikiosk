@@ -39,25 +39,10 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent">
 
-            <com.google.android.material.button.MaterialButton
+            <se.kth.lib.publikiosk.NavButton
                 android:id="@+id/nav_back"
                 android:layout_width="wrap_content"
-                android:layout_height="60dp"
-                android:minWidth="60dp"
-                android:insetTop="0dp"
-                android:insetBottom="0dp"
-                android:text="Tillbaka"
-                android:textAllCaps="false"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                android:textColor="@color/nav_text"
-                app:backgroundTint="@android:color/white"
-                app:strokeColor="@color/nav_border"
-                app:strokeWidth="2dp"
-                app:cornerRadius="14dp"
-                app:icon="@drawable/ic_lucide_chevron_left"
-                app:iconTint="@color/nav_text"
-                app:iconSize="26dp"/>
+                android:layout_height="60dp"/>
 
             <!-- Flera appar: en knapp per app (byggs i KioskChrome), hem-appen först -->
             <LinearLayout
@@ -98,22 +83,10 @@
                     android:textColor="@color/nav_muted"/>
             </LinearLayout>
 
-            <com.google.android.material.button.MaterialButton
+            <se.kth.lib.publikiosk.NavButton
                 android:id="@+id/nav_home"
                 android:layout_width="wrap_content"
-                android:layout_height="60dp"
-                android:insetTop="0dp"
-                android:insetBottom="0dp"
-                android:text="Hem"
-                android:textAllCaps="false"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                android:textColor="@android:color/white"
-                app:backgroundTint="@color/kth_blue"
-                app:cornerRadius="14dp"
-                app:icon="@drawable/ic_lucide_house"
-                app:iconTint="@android:color/white"
-                app:iconSize="26dp"/>
+                android:layout_height="60dp"/>
         </LinearLayout>
 
         <!-- Förstasidan (HOME_MODE=launcher): tjänsterna som besökaren väljer bland. Täcker webbsidan

@@ -34,6 +34,8 @@ import java.util.Locale;
 public class KioskChrome {
 
     private static final String TAG = "KioskChrome";
+    /** Engelskans färg på de vita korten */
+    private static final int SUB_TEXT = 0xFF7B8494;
 
     /** Vad knapparna gör, i MainActivity */
     public interface Actions {
@@ -51,7 +53,8 @@ public class KioskChrome {
 
     private final Activity activity;
     private final View navBar, errorPage, idleWarning, blockedSheet;
-    private final TextView navBack, navHome, navTitle, navHost;
+    private final TextView navTitle, navHost;
+    private final NavButton navBack, navHome;
     private final LinearLayout navApps;
     private final View navInfo;
     private final Actions actions;
@@ -60,7 +63,7 @@ public class KioskChrome {
     private java.util.List<KioskApps.App> apps = new java.util.ArrayList<>();
     private String homeLabel = "";
     private String homeIcon = "house";
-    private final java.util.List<MaterialButton> appButtons = new java.util.ArrayList<>();
+    private final java.util.List<NavButton> appButtons = new java.util.ArrayList<>();
     /** Förstasida (HOME_MODE=launcher): tjänsterna, och om förstasidan visas just nu. Då visar ramen
      *  tjänstens namn och Startsida i stället för flikar. */
     private java.util.List<KioskApps.App> launcherApps = new java.util.ArrayList<>();
@@ -87,8 +90,6 @@ public class KioskChrome {
         navHost = activity.findViewById(R.id.nav_host);
 
         android.graphics.Typeface bold = Fonts.bold(activity);
-        navBack.setTypeface(bold);
-        navHome.setTypeface(bold);
         navTitle.setTypeface(bold);
         navHost.setTypeface(Fonts.regular(activity));
         navBack.setOnClickListener(v -> actions.back());
@@ -171,31 +172,8 @@ public class KioskChrome {
         int total = apps.size() + 1;
         for (int i = 0; i < total; i++) {
             final int index = i;
-            MaterialButton b = new MaterialButton(activity);
-            String icon = i == 0 ? homeIcon : apps.get(i - 1).icon;
-            int res = KioskApps.icon(icon);
-            if (res != 0) {
-                b.setIconResource(res);
-                b.setIconSize(s(26));
-                b.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_START);
-                b.setIconPadding(s(10));
-            }
-            b.setAllCaps(false);
-            b.setMaxLines(1);
-            b.setHorizontallyScrolling(false);
-            b.setEllipsize(null);
-            b.setLetterSpacing(0f);
-            b.setEllipsize(android.text.TextUtils.TruncateAt.END);
-            b.setTextSize(TypedValue.COMPLEX_UNIT_PX, s(20));
-            b.setTypeface(Fonts.bold(activity));
-            b.setInsetTop(0);
-            b.setInsetBottom(0);
-            b.setCornerRadius(s(14));
-            b.setStrokeWidth(Math.max(1, s(2)));
-            b.setPadding(s(22), 0, s(22), 0);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, s(60), 1f);
-            if (i > 0) lp.setMarginStart(s(16));
-            b.setLayoutParams(lp);
+            NavButton b = new NavButton(activity);
+            b.setIcon(KioskApps.icon(i == 0 ? homeIcon : apps.get(i - 1).icon));
             b.setOnClickListener(v -> {
                 if (index == 0) actions.home();
                 else actions.openApp(apps.get(index - 1).url(english));
@@ -203,32 +181,61 @@ public class KioskChrome {
             navApps.addView(b);
             appButtons.add(b);
         }
+        styleNav();
         labelAppButtons();
         markActive(-1);
     }
 
+    /** Svenska och engelska på varje flik; hem-appen heter START_LABEL om den är satt (då på en rad) */
     private void labelAppButtons() {
         for (int i = 0; i < appButtons.size(); i++) {
-            String label = i == 0 ? (homeLabel.isEmpty() ? (english ? "Home" : "Hem") : homeLabel) : apps.get(i - 1).label(english);
-            appButtons.get(i).setText(label);
-            appButtons.get(i).setContentDescription(label);
+            NavButton b = appButtons.get(i);
+            if (i == 0) {
+                if (homeLabel.isEmpty()) b.setLabels("Hem", "Home");
+                else b.setLabels(homeLabel, null);
+            } else {
+                KioskApps.App a = apps.get(i - 1);
+                b.setLabels(a.label, a.labelEn);
+            }
         }
     }
 
     /** Den aktiva appen är blåfylld, de andra vita med ram */
     private void markActive(int active) {
-        int blue = activity.getColor(R.color.kth_blue);
-        int text = activity.getColor(R.color.nav_text);
-        int border = activity.getColor(R.color.nav_border);
+        for (int i = 0; i < appButtons.size(); i++) appButtons.get(i).setActive(i == active);
+    }
+
+    /**
+     * Liggande: ikonen till vänster, 60 hög. Stående, eller fler än fem flikar: ikonen ovanför texten,
+     * 88 hög, lika breda flikar.
+     */
+    private boolean portrait() {
+        return activity.getResources().getConfiguration().orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT;
+    }
+
+    private void styleNav() {
+        boolean stacked = portrait() || appButtons.size() > 5;
+        float u = scale();
+        int h = s(stacked ? 88 : 60);
+        navBack.setStyle(stacked, u);
+        navBack.setIcon(R.drawable.ic_lucide_chevron_left);
+        setSize(navBack, stacked ? s(88) : ViewGroup.LayoutParams.WRAP_CONTENT, h);
+        navHome.setStyle(stacked, u);
+        navHome.setIcon(R.drawable.ic_lucide_house);
+        navHome.setActive(true);
+        navHome.setMinimumWidth(stacked ? s(88) : 0);
+        setSize(navHome, ViewGroup.LayoutParams.WRAP_CONTENT, h);
         for (int i = 0; i < appButtons.size(); i++) {
-            MaterialButton b = appButtons.get(i);
-            boolean on = i == active;
-            b.setBackgroundTintList(ColorStateList.valueOf(on ? blue : Color.WHITE));
-            b.setStrokeColor(ColorStateList.valueOf(on ? blue : border));
-            b.setTextColor(on ? Color.WHITE : text);
-            b.setIconTint(ColorStateList.valueOf(on ? Color.WHITE : text));
-            b.setSelected(on);
+            NavButton b = appButtons.get(i);
+            b.setStyle(stacked, u);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, h, 1f);
+            lp.setMarginStart(i == 0 ? 0 : s(stacked ? 8 : 16));
+            b.setLayoutParams(lp);
         }
+        ViewGroup.LayoutParams bar = navBar.getLayoutParams();
+        bar.height = s(stacked ? 116 : 88);
+        navBar.setLayoutParams(bar);
+        navApps.setPadding(s(stacked ? 8 : 16), 0, 0, 0);
     }
 
     /**
@@ -244,56 +251,32 @@ public class KioskChrome {
         return activity.getResources().getDisplayMetrics().widthPixels / (portrait ? 800f : 1280f);
     }
 
-    /** Knappens bredd räknas ut ur texten, så att ingen bokstav klipps (Material mäter ibland för snävt med egna typsnitt) */
-    private void fitWidth(MaterialButton b, int padStart, int padEnd, int iconGap) {
-        android.graphics.Paint paint = new android.graphics.Paint(b.getPaint());
-        float text = paint.measureText(b.getText().toString());
+    /**
+     * Tvåspråkig text på en knapp: svenska i knappens storlek, engelska mindre under. Bredden räknas
+     * ur den bredaste raden (padDesign < 0: bredden rörs inte), så att ingen bokstav klipps.
+     */
+    private void setTwo(MaterialButton b, String sv, String en, float svDesign, float enDesign, float padDesign, int enColor) {
+        b.setMaxLines(en == null ? 1 : 2);
+        b.setIncludeFontPadding(false);
+        b.setLineSpacing(0, 1f);
+        b.setText(Bilingual.two(sv, en, s(enDesign), enColor, Fonts.regular(activity)));
+        if (padDesign < 0) return;
+        android.graphics.Paint svp = new android.graphics.Paint();
+        svp.setTypeface(Fonts.bold(activity));
+        svp.setTextSize(s(svDesign));
+        android.graphics.Paint enp = new android.graphics.Paint();
+        enp.setTypeface(Fonts.regular(activity));
+        enp.setTextSize(s(enDesign));
         ViewGroup.LayoutParams lp = b.getLayoutParams();
-        lp.width = Math.round(s(padStart) + s(26) + s(iconGap) + text + s(padEnd) + s(4));
+        lp.width = Math.round(Bilingual.width(sv, en, svp, enp) + s(padDesign) * 2 + s(4));
         b.setLayoutParams(lp);
     }
 
-    /** Textknappar utan ikon: bredden ur texten, av samma skäl som fitWidth */
-    private void fitTextButtons() {
-        for (int id : new int[]{R.id.error_retry, R.id.error_home, R.id.blocked_close}) {
-            MaterialButton b = activity.findViewById(id);
-            b.setMaxLines(1);
-            ViewGroup.LayoutParams lp = b.getLayoutParams();
-            lp.width = Math.round(new android.graphics.Paint(b.getPaint()).measureText(b.getText().toString()) + s(28) * 2 + s(4));
-            b.setLayoutParams(lp);
-        }
-        MaterialButton restart = activity.findViewById(R.id.idle_restart);
-        restart.setMaxLines(1);
-        ViewGroup.LayoutParams rlp = restart.getLayoutParams();
-        rlp.width = Math.round(new android.graphics.Paint(restart.getPaint()).measureText(restart.getText().toString()) + s(24) * 2 + s(4));
-        restart.setLayoutParams(rlp);
-    }
-
     private void applyScale() {
-        ViewGroup.LayoutParams bar = navBar.getLayoutParams();
-        bar.height = s(88);
-        navBar.setLayoutParams(bar);
         navBar.setPadding(s(20), 0, s(20), 0);
-        for (TextView t : new TextView[]{navBack, navHome}) {
-            MaterialButton b = (MaterialButton) t;
-            ViewGroup.LayoutParams lp = b.getLayoutParams();
-            lp.height = s(60);
-            b.setLayoutParams(lp);
-            b.setTextSize(TypedValue.COMPLEX_UNIT_PX, s(20));
-            b.setCornerRadius(s(14));
-            b.setIconSize(s(26));
-            b.setIconPadding(s(t == navBack ? 6 : 10));
-            b.setMinWidth(0);
-            b.setMinimumWidth(0);
-            b.setSingleLine(true);
-            b.setLetterSpacing(0f);
-        }
-        ((MaterialButton) navBack).setStrokeWidth(Math.max(1, s(2)));
-        navBack.setPadding(s(14), 0, s(22), 0);
-        navHome.setPadding(s(18), 0, s(24), 0);
+        styleNav();
         navTitle.setTextSize(TypedValue.COMPLEX_UNIT_PX, s(22));
         navHost.setTextSize(TypedValue.COMPLEX_UNIT_PX, s(15));
-        navApps.setPadding(s(16), 0, 0, 0);
         applyIdleScale();
         applyBlockedScale();
         applyErrorScale();
@@ -488,9 +471,10 @@ public class KioskChrome {
         CountdownView count = activity.findViewById(R.id.idle_count);
         count.setText(String.valueOf(secondsLeft));
         count.setProgress(warningTotal > 0 ? secondsLeft / (float) warningTotal : 0f);
-        ((TextView) activity.findViewById(R.id.idle_text)).setText(english
-                ? "Nobody has touched the screen for a while. In " + secondsLeft + " seconds the app starts over and what you did here is cleared."
-                : "Ingen har rört skärmen på en stund. Om " + secondsLeft + " sekunder börjar appen om från början och det du har gjort här rensas.");
+        ((TextView) activity.findViewById(R.id.idle_text)).setText(Bilingual.two(
+                "Ingen har rört skärmen på en stund. Om " + secondsLeft + " sekunder börjar appen om från början och det du har gjort här rensas.",
+                "Nobody has touched the screen for a while. In " + secondsLeft + " seconds the app starts over and what you did here is cleared.",
+                s(16), SUB_TEXT, Fonts.regular(activity)));
         idleWarning.setVisibility(View.VISIBLE);
     }
 
@@ -514,13 +498,14 @@ public class KioskChrome {
         qr.setVisibility(code != null ? View.VISIBLE : View.GONE);
         if (code != null) {
             qr.setImageBitmap(code);
-            qr.setContentDescription(english ? "QR code for " + host : "QR-kod till " + host);
+            qr.setContentDescription("QR-kod till " + host + " / QR code for " + host);
         }
         ((TextView) activity.findViewById(R.id.blocked_text)).setText(code != null
-                ? (english
-                    ? host + " can't be opened on this screen. Scan the code with your phone to continue there."
-                    : host + " öppnas inte på den här skärmen. Skanna koden med mobilen för att fortsätta där.")
-                : (english ? "This link can't be opened on this screen." : "Den här länken kan inte öppnas på skärmen."));
+                ? Bilingual.two(host + " öppnas inte på den här skärmen. Skanna koden med mobilen för att fortsätta där.",
+                        host + " can't be opened on this screen. Scan the code with your phone to continue there.",
+                        s(16), SUB_TEXT, Fonts.regular(activity))
+                : Bilingual.two("Den här länken kan inte öppnas på skärmen.", "This link can't be opened on this screen.",
+                        s(16), SUB_TEXT, Fonts.regular(activity)));
         blockedSheet.setVisibility(View.VISIBLE);
     }
 
@@ -536,13 +521,13 @@ public class KioskChrome {
      */
     public void showError(boolean offline) {
         ((TextView) activity.findViewById(R.id.error_title)).setText(offline
-                ? (english ? "Waiting for the network…" : "Väntar på nätverket…")
-                : (english ? "The page could not be loaded" : "Sidan kunde inte laddas"));
+                ? Bilingual.two("Väntar på nätverket…", "Waiting for the network…", s(22), SUB_TEXT, Fonts.regular(activity))
+                : Bilingual.two("Sidan kunde inte laddas", "The page could not be loaded", s(22), SUB_TEXT, Fonts.regular(activity)));
         ((TextView) activity.findViewById(R.id.error_text)).setText(offline
-                ? (english ? "The page loads by itself as soon as the screen is connected."
-                           : "Sidan laddas av sig själv så snart skärmen är ansluten.")
-                : (english ? "It may be a temporary network problem. Try again, or start over."
-                           : "Det kan vara ett tillfälligt nätverksfel. Försök igen, eller börja om från början."));
+                ? Bilingual.two("Sidan laddas av sig själv så snart skärmen är ansluten.",
+                        "The page loads by itself as soon as the screen is connected.", s(16), SUB_TEXT, Fonts.regular(activity))
+                : Bilingual.two("Det kan vara ett tillfälligt nätverksfel. Försök igen, eller börja om från början.",
+                        "It may be a temporary network problem. Try again, or start over.", s(16), SUB_TEXT, Fonts.regular(activity)));
         errorPage.setVisibility(View.VISIBLE);
     }
 
@@ -561,21 +546,24 @@ public class KioskChrome {
     }
 
     private void applyTexts() {
-        navBack.setText(english ? "Back" : "Tillbaka");
-        navHome.setText(launcherMode() ? (english ? "Home page" : "Startsida") : (english ? "Home" : "Hem"));
+        navBack.setLabels("Tillbaka", "Back");
+        if (launcherMode()) navHome.setLabels("Startsida", "Home page");
+        else navHome.setLabels("Hem", "Home");
         labelAppButtons();
-        fitTextButtons();
-        fitWidth((MaterialButton) navBack, 14, 22, 6);
-        fitWidth((MaterialButton) navHome, 18, 24, 10);
-        ((TextView) activity.findViewById(R.id.error_retry)).setText(english ? "Try again" : "Försök igen");
-        // Startknappen på felsidan heter det som START_LABEL anger, annars som startknappen i ramen
-        ((TextView) activity.findViewById(R.id.error_home)).setText(!homeLabel.isEmpty() ? homeLabel
-                : launcherMode() ? (english ? "Home page" : "Startsida") : (english ? "Home" : "Hem"));
-        ((TextView) activity.findViewById(R.id.idle_title)).setText(english ? "Are you still there?" : "Är du kvar?");
-        ((TextView) activity.findViewById(R.id.idle_continue)).setText(english ? "Continue here" : "Fortsätt här");
-        ((TextView) activity.findViewById(R.id.idle_restart)).setText(english ? "Start over now" : "Börja om nu");
-        ((TextView) activity.findViewById(R.id.blocked_title)).setText(english ? "This page can't be opened here" : "Sidan kan inte öppnas här");
-        ((TextView) activity.findViewById(R.id.blocked_close)).setText(english ? "Close" : "Stäng");
+        MaterialButton retry = activity.findViewById(R.id.error_retry);
+        setTwo(retry, "Försök igen", "Try again", 20, 14, 28, Bilingual.LIGHT_ON_WHITE);
+        // Startknappen på felsidan heter det som START_LABEL anger (på en rad), annars som startknappen i ramen
+        MaterialButton errorHome = activity.findViewById(R.id.error_home);
+        if (!homeLabel.isEmpty()) setTwo(errorHome, homeLabel, null, 20, 14, 28, Bilingual.LIGHT_ON_BLUE);
+        else if (launcherMode()) setTwo(errorHome, "Startsida", "Home page", 20, 14, 28, Bilingual.LIGHT_ON_BLUE);
+        else setTwo(errorHome, "Hem", "Home", 20, 14, 28, Bilingual.LIGHT_ON_BLUE);
+        ((TextView) activity.findViewById(R.id.idle_title)).setText(
+                Bilingual.two("Är du kvar?", "Are you still there?", s(20), SUB_TEXT, Fonts.regular(activity)));
+        setTwo(activity.findViewById(R.id.idle_continue), "Fortsätt här", "Continue here", 24, 15, -1, Bilingual.LIGHT_ON_BLUE);
+        setTwo(activity.findViewById(R.id.idle_restart), "Börja om nu", "Start over now", 20, 13, 24, Bilingual.LIGHT_ON_WHITE);
+        ((TextView) activity.findViewById(R.id.blocked_title)).setText(
+                Bilingual.two("Sidan kan inte öppnas här", "This page can't be opened here", s(20), SUB_TEXT, Fonts.regular(activity)));
+        setTwo(activity.findViewById(R.id.blocked_close), "Stäng", "Close", 20, 14, 28, Bilingual.LIGHT_ON_BLUE);
     }
 
     /** QR-kod i KTH-navy på vitt, skapad i enheten (inget nätanrop). Null om adressen inte går att koda. */
