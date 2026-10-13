@@ -36,6 +36,8 @@ public class KioskChrome {
     private static final String TAG = "KioskChrome";
     /** Engelskans färg på de vita korten */
     private static final int SUB_TEXT = 0xFF7B8494;
+    /** Rubriker och text på de ramade knapparna, som i skissen och Linux-kiosken */
+    private static final int TITLE = 0xFF1F2937;
 
     /** Vad knapparna gör, i MainActivity */
     public interface Actions {
@@ -301,6 +303,7 @@ public class KioskChrome {
         TextView title = activity.findViewById(R.id.idle_title);
         title.setTextSize(TypedValue.COMPLEX_UNIT_PX, s(30));
         title.setTypeface(Fonts.extraBold(activity));
+        title.setTextColor(TITLE);
         setTopMargin(title, s(18));
         TextView text = activity.findViewById(R.id.idle_text);
         text.setTextSize(TypedValue.COMPLEX_UNIT_PX, s(20));
@@ -316,13 +319,14 @@ public class KioskChrome {
         cont.setTypeface(Fonts.bold(activity));
         setTopMargin(cont, s(18));
         MaterialButton restart = activity.findViewById(R.id.idle_restart);
-        setSize(restart, ViewGroup.LayoutParams.WRAP_CONTENT, s(56));
+        setSize(restart, ViewGroup.LayoutParams.MATCH_PARENT, s(56));
         restart.setTextSize(TypedValue.COMPLEX_UNIT_PX, s(20));
         restart.setCornerRadius(s(14));
         restart.setLetterSpacing(0f);
         restart.setTypeface(Fonts.bold(activity));
         restart.setPadding(s(24), 0, s(24), 0);
-        setTopMargin(restart, s(18));
+        outline(restart);
+        setTopMargin(restart, s(12));
     }
 
 
@@ -337,6 +341,7 @@ public class KioskChrome {
         TextView title = activity.findViewById(R.id.blocked_title);
         title.setTextSize(TypedValue.COMPLEX_UNIT_PX, s(30));
         title.setTypeface(Fonts.extraBold(activity));
+        title.setTextColor(TITLE);
         TextView text = activity.findViewById(R.id.blocked_text);
         text.setTextSize(TypedValue.COMPLEX_UNIT_PX, s(20));
         text.setTypeface(Fonts.regular(activity));
@@ -365,6 +370,7 @@ public class KioskChrome {
         TextView title = activity.findViewById(R.id.error_title);
         title.setTextSize(TypedValue.COMPLEX_UNIT_PX, s(34));
         title.setTypeface(Fonts.extraBold(activity));
+        title.setTextColor(TITLE);
         setTopMargin(title, s(18));
         TextView text = activity.findViewById(R.id.error_text);
         text.setTextSize(TypedValue.COMPLEX_UNIT_PX, s(20));
@@ -382,9 +388,18 @@ public class KioskChrome {
             b.setLetterSpacing(0f);
             b.setTypeface(Fonts.bold(activity));
             b.setPadding(s(28), 0, s(28), 0);
-            b.setStrokeWidth(id == R.id.error_retry ? Math.max(1, s(2)) : 0);
+            if (id == R.id.error_retry) outline(b);
+            else b.setStrokeWidth(0);
         }
         ((ViewGroup.MarginLayoutParams) activity.findViewById(R.id.error_retry).getLayoutParams()).setMarginEnd(s(14));
+    }
+
+    /** Den andra knappen: vit med ram och mörk text, som i skissen och Linux-kiosken */
+    private void outline(MaterialButton b) {
+        b.setBackgroundTintList(ColorStateList.valueOf(Color.WHITE));
+        b.setStrokeColor(ColorStateList.valueOf(activity.getColor(R.color.nav_border)));
+        b.setStrokeWidth(Math.max(1, s(2)));
+        b.setTextColor(TITLE);
     }
 
     private static void setSize(View v, int w, int h) {
@@ -521,8 +536,8 @@ public class KioskChrome {
      */
     public void showError(boolean offline) {
         ((TextView) activity.findViewById(R.id.error_title)).setText(offline
-                ? Bilingual.two("Väntar på nätverket…", "Waiting for the network…", s(22), SUB_TEXT, Fonts.regular(activity))
-                : Bilingual.two("Sidan kunde inte laddas", "The page could not be loaded", s(22), SUB_TEXT, Fonts.regular(activity)));
+                ? Bilingual.two("Väntar på nätverket…", "Waiting for the network…", s(22), SUB_TEXT, Fonts.bold(activity))
+                : Bilingual.two("Sidan kunde inte laddas", "The page could not be loaded", s(22), SUB_TEXT, Fonts.bold(activity)));
         ((TextView) activity.findViewById(R.id.error_text)).setText(offline
                 ? Bilingual.two("Sidan laddas av sig själv så snart skärmen är ansluten.",
                         "The page loads by itself as soon as the screen is connected.", s(16), SUB_TEXT, Fonts.regular(activity))
@@ -558,11 +573,11 @@ public class KioskChrome {
         else if (launcherMode()) setTwo(errorHome, "Startsida", "Home page", 20, 14, 28, Bilingual.LIGHT_ON_BLUE);
         else setTwo(errorHome, "Hem", "Home", 20, 14, 28, Bilingual.LIGHT_ON_BLUE);
         ((TextView) activity.findViewById(R.id.idle_title)).setText(
-                Bilingual.two("Är du kvar?", "Are you still there?", s(20), SUB_TEXT, Fonts.regular(activity)));
+                Bilingual.two("Är du kvar?", "Are you still there?", s(20), SUB_TEXT, Fonts.bold(activity)));
         setTwo(activity.findViewById(R.id.idle_continue), "Fortsätt här", "Continue here", 24, 15, -1, Bilingual.LIGHT_ON_BLUE);
-        setTwo(activity.findViewById(R.id.idle_restart), "Börja om nu", "Start over now", 20, 13, 24, Bilingual.LIGHT_ON_WHITE);
+        setTwo(activity.findViewById(R.id.idle_restart), "Börja om nu", "Start over now", 20, 13, -1, Bilingual.LIGHT_ON_WHITE);
         ((TextView) activity.findViewById(R.id.blocked_title)).setText(
-                Bilingual.two("Sidan kan inte öppnas här", "This page can't be opened here", s(20), SUB_TEXT, Fonts.regular(activity)));
+                Bilingual.two("Sidan kan inte öppnas här", "This page can't be opened here", s(20), SUB_TEXT, Fonts.bold(activity)));
         setTwo(activity.findViewById(R.id.blocked_close), "Stäng", "Close", 20, 14, 28, Bilingual.LIGHT_ON_BLUE);
     }
 
