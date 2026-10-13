@@ -319,14 +319,14 @@ public class KioskChrome {
         cont.setTypeface(Fonts.bold(activity));
         setTopMargin(cont, s(18));
         MaterialButton restart = activity.findViewById(R.id.idle_restart);
-        setSize(restart, ViewGroup.LayoutParams.MATCH_PARENT, s(56));
+        setSize(restart, ViewGroup.LayoutParams.WRAP_CONTENT, s(56));
         restart.setTextSize(TypedValue.COMPLEX_UNIT_PX, s(20));
         restart.setCornerRadius(s(14));
         restart.setLetterSpacing(0f);
         restart.setTypeface(Fonts.bold(activity));
         restart.setPadding(s(24), 0, s(24), 0);
-        outline(restart);
-        setTopMargin(restart, s(12));
+        restart.setTextColor(activity.getColor(R.color.kth_blue));
+        setTopMargin(restart, s(18));
     }
 
 
@@ -575,7 +575,7 @@ public class KioskChrome {
         ((TextView) activity.findViewById(R.id.idle_title)).setText(
                 Bilingual.two("Är du kvar?", "Are you still there?", s(20), SUB_TEXT, Fonts.bold(activity)));
         setTwo(activity.findViewById(R.id.idle_continue), "Fortsätt här", "Continue here", 24, 15, -1, Bilingual.LIGHT_ON_BLUE);
-        setTwo(activity.findViewById(R.id.idle_restart), "Börja om nu", "Start over now", 20, 13, -1, Bilingual.LIGHT_ON_WHITE);
+        setTwo(activity.findViewById(R.id.idle_restart), "Börja om nu", "Start over now", 20, 13, 24, Bilingual.LIGHT_ON_WHITE);
         ((TextView) activity.findViewById(R.id.blocked_title)).setText(
                 Bilingual.two("Sidan kan inte öppnas här", "This page can't be opened here", s(20), SUB_TEXT, Fonts.bold(activity)));
         setTwo(activity.findViewById(R.id.blocked_close), "Stäng", "Close", 20, 14, 28, Bilingual.LIGHT_ON_BLUE);
