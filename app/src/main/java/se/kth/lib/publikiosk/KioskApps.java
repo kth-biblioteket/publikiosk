@@ -165,7 +165,7 @@ final class KioskApps {
      * START_URL: den läggs först när dess adress inte redan finns bland tjänsterna (namn START_LABEL eller Hem /
      * Home, ikon START_ICON, område APP_SCOPE). Högst TAB_APPS.
      */
-    static List<App> forFrame(String appsRaw, String startUrl, String startLabel, String startIcon, String appScope) {
+    static List<App> forFrame(String appsRaw, String startUrl, String startLabel, String startLabelEn, String startIcon, String appScope) {
         List<App> apps = parse(appsRaw);
         String url = startUrl == null ? "" : startUrl.trim();
         if (url.startsWith("https://") && Uri.parse(url).getHost() != null) {
@@ -178,7 +178,7 @@ final class KioskApps {
                 String label = startLabel == null ? "" : startLabel.trim();
                 String icon = startIcon == null || startIcon.trim().isEmpty() ? "house" : startIcon.trim();
                 add(withHome, label.isEmpty() ? "Hem" : label, url, icon, appScope == null ? "" : appScope.trim(),
-                        "", label.isEmpty() ? "Home" : "", "", "", "startsidan");
+                        "", label.isEmpty() && (startLabelEn == null || startLabelEn.trim().isEmpty()) ? "Home" : (startLabelEn == null ? "" : startLabelEn.trim()), "", "", "startsidan");
                 withHome.addAll(apps);
                 apps = withHome;
             }

@@ -88,6 +88,7 @@ public final class ManagedConfig {
         changed |= putInt(prefs, e, "launcherrefresh", intValue(values, "LAUNCHER_REFRESH", 1, 1, 60));
         changed |= putString(prefs, e, "apps", values.optString("APPS", "").trim());
         changed |= putString(prefs, e, "startlabel", values.optString("START_LABEL", "").trim());
+        changed |= putString(prefs, e, "startlabel_en", values.optString("START_LABEL_EN", "").trim());
         String startIcon = values.optString("START_ICON", "house").trim();
         changed |= putString(prefs, e, "starticon", startIcon.isEmpty() ? "house" : startIcon);
         changed |= putInt(prefs, e, "idlewarning", intValue(values, "IDLE_WARNING", 10, 0, 120));

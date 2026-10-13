@@ -64,6 +64,8 @@ public class KioskChrome {
     /** Flera appar: hem-appen (index 0) och de övriga. Tom lista = en app, som förut. */
     private java.util.List<KioskApps.App> apps = new java.util.ArrayList<>();
     private String homeLabel = "";
+    /** START_LABEL_EN: startknappens engelska rad (tom: ingen engelsk rad när START_LABEL är ifylld) */
+    private String homeLabelEn = "";
     private String homeIcon = "house";
     private final java.util.List<NavButton> appButtons = new java.util.ArrayList<>();
     /** Förstasida (HOME_MODE=launcher): tjänsterna, och om förstasidan visas just nu. Då visar ramen
@@ -114,7 +116,7 @@ public class KioskChrome {
      * namn och ikon och övriga appar (APPS) när enheten har flera.
      */
     public void configure(String startUrl, String appScope, String navigation, String language,
-                          String startLabel, String startIcon, java.util.List<KioskApps.App> appList) {
+                          String startLabel, String startLabelEn, String startIcon, java.util.List<KioskApps.App> appList) {
         apps = appList == null ? new java.util.ArrayList<>() : new java.util.ArrayList<>(appList);
         // I ramen får det plats högst sex flikar, hem-appen (den första tjänsten) inräknad
         if (apps.size() > KioskApps.TAB_APPS) apps = new java.util.ArrayList<>(apps.subList(0, KioskApps.TAB_APPS));
@@ -125,6 +127,7 @@ public class KioskChrome {
         mode = navigation == null || navigation.isEmpty() ? "auto" : navigation;
         english = "en".equals(language);
         homeLabel = startLabel == null ? "" : startLabel.trim();
+        homeLabelEn = startLabelEn == null ? "" : startLabelEn.trim();
         homeIcon = startIcon == null || startIcon.trim().isEmpty() ? "house" : startIcon.trim();
         applyScale();
         buildAppButtons();
@@ -560,15 +563,15 @@ public class KioskChrome {
 
     private void applyTexts() {
         navBack.setLabels("Tillbaka", "Back");
-        if (launcherMode()) navHome.setLabels("Startsida", "Home page");
-        else if (!homeLabel.isEmpty()) navHome.setLabels(homeLabel, null);
+        if (!homeLabel.isEmpty()) navHome.setLabels(homeLabel, homeLabelEn);
+        else if (launcherMode()) navHome.setLabels("Startsida", "Home page");
         else navHome.setLabels("Hem", "Home");
         labelAppButtons();
         MaterialButton retry = activity.findViewById(R.id.error_retry);
         setTwo(retry, "Försök igen", "Try again", 20, 14, 28, Bilingual.LIGHT_ON_WHITE);
         // Startknappen på felsidan heter det som START_LABEL anger (på en rad), annars som startknappen i ramen
         MaterialButton errorHome = activity.findViewById(R.id.error_home);
-        if (!homeLabel.isEmpty()) setTwo(errorHome, homeLabel, null, 20, 14, 28, Bilingual.LIGHT_ON_BLUE);
+        if (!homeLabel.isEmpty()) setTwo(errorHome, homeLabel, homeLabelEn.isEmpty() ? null : homeLabelEn, 20, 14, 28, Bilingual.LIGHT_ON_BLUE);
         else if (launcherMode()) setTwo(errorHome, "Startsida", "Home page", 20, 14, 28, Bilingual.LIGHT_ON_BLUE);
         else setTwo(errorHome, "Hem", "Home", 20, 14, 28, Bilingual.LIGHT_ON_BLUE);
         ((TextView) activity.findViewById(R.id.idle_title)).setText(

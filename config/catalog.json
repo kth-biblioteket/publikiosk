@@ -67,6 +67,8 @@
       "help": "Hur ofta fälten och meddelandet hämtas från sina adresser medan förstasidan visas." },
     { "key": "START_LABEL", "label": "Startsidans namn", "group": "startsida", "type": "string", "example": "Boka rum",
       "help": "Texten på Startsida-knappen: med förstasida, och när enheten bara har en tjänst (navigeringen och felsidan). Med flera tjänster är första fliken hem med tjänstens eget namn och engelska namn. Tomt: Startsida (Home page på engelska) med förstasida och Hem (Home) när första tjänsten är hem." },
+    { "key": "START_LABEL_EN", "label": "Startsidans namn (English)", "group": "startsida", "type": "string", "example": "Book a room",
+      "help": "Startknappens namn på engelska, visas mindre under det svenska. Tomt: ingen engelsk rad när Startsidans namn är ifyllt; annars standardtexten (Home page / Home)." },
     { "key": "START_ICON", "label": "Startsidans ikon", "group": "startsida", "type": "enum", "default": "house",
       "options": [{ "value": "house", "label": "Hus" }, { "value": "search", "label": "Sök" }, { "value": "map", "label": "Karta" }, { "value": "map-pin", "label": "Kartnål" }, { "value": "calendar", "label": "Kalender" }, { "value": "book-open", "label": "Bok" }, { "value": "library", "label": "Bibliotek" }, { "value": "info", "label": "Information" }, { "value": "circle-help", "label": "Hjälp" }, { "value": "printer", "label": "Skrivare" }, { "value": "monitor", "label": "Dator" }, { "value": "user", "label": "Person" }, { "value": "clock", "label": "Klocka" }, { "value": "graduation-cap", "label": "Studentmössa" }],
       "help": "Ikonen på Startsida-knappen: med förstasida, och när enheten bara har en tjänst. Med flera tjänster har varje flik sin egen ikon (första tjänsten är hem)." },

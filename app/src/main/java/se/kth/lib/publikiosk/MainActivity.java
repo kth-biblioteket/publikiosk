@@ -121,7 +121,7 @@ public class MainActivity extends AppCompatActivity {
     private LauncherScreen launcher;
     /** Språket besökaren valt med knappen på förstasidan; återställs när enheten går tillbaka till förstasidan */
     private boolean uiEnglish = false;
-    private String savedStartLabel = "";
+    private String savedStartLabel = "", savedStartLabelEn = "";
     private String savedStartIcon = "house";
     private int savedIdleWarning = 10;
     private String savedLanguage = "sv";
@@ -1167,6 +1167,7 @@ public class MainActivity extends AppCompatActivity {
         savedAttractJs = sharedPreferences.getBoolean("attractjs", false);
         savedAttractRefresh = sharedPreferences.getInt("attractrefresh", 10);
         savedStartLabel = sharedPreferences.getString("startlabel", "");
+        savedStartLabelEn = sharedPreferences.getString("startlabel_en", "");
         savedStartIcon = sharedPreferences.getString("starticon", "house");
         savedIdleWarning = sharedPreferences.getInt("idlewarning", 10);
         savedLanguage = sharedPreferences.getString("language", "sv");
@@ -1193,7 +1194,7 @@ public class MainActivity extends AppCompatActivity {
 
         // Ramen (HOME_MODE=app): APPS med hem först, äldre inställningar får START_URL som första tjänst
         frameApps = launcherMode ? new java.util.ArrayList<>()
-                : KioskApps.forFrame(savedApps, savedUrl, savedStartLabel, savedStartIcon, savedAppScope);
+                : KioskApps.forFrame(savedApps, savedUrl, savedStartLabel, savedStartLabelEn, savedStartIcon, savedAppScope);
         orientationSpinner.setSelection(savedOrientation);
         fullscreenCheckbox.setChecked(savedFullscreen);
         urlInput.setText(savedUrl);
@@ -1215,7 +1216,7 @@ public class MainActivity extends AppCompatActivity {
     private void configureChrome() {
         // På förstasidan visar ramen inga flikar: tjänsterna ligger i launcherApps
         chrome.configure(homeUrl(), savedAppScope, savedNavigation, savedLanguage,
-                savedStartLabel, savedStartIcon, frameApps);
+                savedStartLabel, savedStartLabelEn, savedStartIcon, frameApps);
         chrome.setLauncherApps(launcherApps);
         if (launcherMode) chrome.setEnglish(uiEnglish);
         configureLauncher();
