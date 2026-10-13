@@ -68,6 +68,12 @@ public class NavButton extends LinearLayout {
         icon.setVisibility(res != 0 ? VISIBLE : GONE);
     }
 
+    /** Ikon ur en Lucide-ritning (null: ingen ikon) */
+    public void setIcon(android.graphics.drawable.Drawable drawable) {
+        icon.setImageDrawable(drawable);
+        icon.setVisibility(drawable != null ? VISIBLE : GONE);
+    }
+
     /** Svenska och engelska; engelskan utelämnas när den saknas eller är densamma */
     public void setLabels(String svText, String enText) {
         sv.setText(svText);

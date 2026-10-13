@@ -299,7 +299,7 @@ public class LauncherFooter {
         if (config.icon.equals("none")) {
             message.setCompoundDrawablesRelative(null, null, null, null);
         } else {
-            android.graphics.drawable.Drawable ic = activity.getDrawable(KioskApps.tileIcon(config.icon)).mutate();
+            android.graphics.drawable.Drawable ic = KioskApps.tileIcon(activity, config.icon).mutate();
             int size = px(portrait ? 26 : 28);
             ic.setBounds(0, 0, size, size);
             ic.setTint(fg);

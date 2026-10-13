@@ -204,7 +204,7 @@ public class KioskChrome {
         for (int i = 0; i < total; i++) {
             final int index = i;
             NavButton b = new NavButton(activity);
-            b.setIcon(KioskApps.icon(apps.get(i).icon));
+            b.setIcon(KioskApps.icon(activity, apps.get(i).icon));
             b.setOnClickListener(v -> {
                 selected = index;
                 if (index == 0) actions.home();
@@ -247,7 +247,9 @@ public class KioskChrome {
         navBack.setIcon(R.drawable.ic_lucide_chevron_left);
         setSize(navBack, stacked ? s(88) : ViewGroup.LayoutParams.WRAP_CONTENT, h);
         navHome.setStyle(stacked, u);
-        navHome.setIcon(launcherMode() || KioskApps.icon(homeIcon) == 0 ? R.drawable.ic_lucide_house : KioskApps.icon(homeIcon));
+        android.graphics.drawable.Drawable homeDrawable = launcherMode() ? null : KioskApps.icon(activity, homeIcon);
+        if (homeDrawable != null) navHome.setIcon(homeDrawable);
+        else navHome.setIcon(R.drawable.ic_lucide_house);
         navHome.setActive(true);
         navHome.setMinimumWidth(stacked ? s(88) : 0);
         setSize(navHome, ViewGroup.LayoutParams.WRAP_CONTENT, h);

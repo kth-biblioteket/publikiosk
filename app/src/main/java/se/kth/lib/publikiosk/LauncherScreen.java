@@ -432,7 +432,7 @@ public class LauncherScreen {
         tile.setOnClickListener(v -> listener.open(app));
 
         int box = px(iconD);
-        FrameLayoutHolder icon = new FrameLayoutHolder(activity, KioskApps.tileIcon(app.icon), Math.round(box * 0.54f), box);
+        FrameLayoutHolder icon = new FrameLayoutHolder(activity, KioskApps.tileIcon(activity, app.icon), Math.round(box * 0.54f), box);
         tile.addView(icon.box, new LinearLayout.LayoutParams(box, box));
 
         LinearLayout text = new LinearLayout(activity);
@@ -476,7 +476,7 @@ public class LauncherScreen {
     private static final class FrameLayoutHolder {
         final LinearLayout box;
 
-        FrameLayoutHolder(Activity activity, int iconRes, int iconPx, int boxPx) {
+        FrameLayoutHolder(Activity activity, android.graphics.drawable.Drawable iconDrawable, int iconPx, int boxPx) {
             box = new LinearLayout(activity);
             box.setGravity(Gravity.CENTER);
             // Rundad ruta (radie 25 % av sidan), inte en cirkel, som i Linux-kiosken
@@ -485,7 +485,7 @@ public class LauncherScreen {
             bg.setCornerRadius(boxPx * 0.25f);
             box.setBackground(bg);
             ImageView iv = new ImageView(activity);
-            iv.setImageResource(iconRes);
+            iv.setImageDrawable(iconDrawable);
             iv.setImageTintList(android.content.res.ColorStateList.valueOf(activity.getColor(R.color.kth_blue)));
             iv.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
             box.addView(iv, new LinearLayout.LayoutParams(iconPx, iconPx));

@@ -199,31 +199,14 @@ final class KioskApps {
         return sb.toString();
     }
 
-    /** Ikonen för en tjänst på förstasidan: den som står i inställningen, annars en informationsikon */
-    static int tileIcon(String name) {
-        int res = icon(name);
-        return res != 0 ? res : R.drawable.ic_lucide_info;
+    /** Ikonen för en tjänst på förstasidan: den som står i inställningen (valfri Lucide-ikon), annars en informationsikon */
+    static android.graphics.drawable.Drawable tileIcon(android.content.Context context, String name) {
+        android.graphics.drawable.Drawable d = icon(context, name);
+        return d != null ? d : context.getDrawable(R.drawable.ic_lucide_info).mutate();
     }
 
-    /** Ikonen med det namn som står i inställningen (Lucide), eller 0 om den saknas */
-    static int icon(String name) {
-        if (name == null) return 0;
-        switch (name.trim().toLowerCase(java.util.Locale.ROOT)) {
-            case "house": return R.drawable.ic_lucide_house;
-            case "search": return R.drawable.ic_lucide_search;
-            case "map": return R.drawable.ic_lucide_map;
-            case "map-pin": return R.drawable.ic_lucide_map_pin;
-            case "calendar": return R.drawable.ic_lucide_calendar;
-            case "book-open": return R.drawable.ic_lucide_book_open;
-            case "library": return R.drawable.ic_lucide_library;
-            case "info": return R.drawable.ic_lucide_info;
-            case "circle-help": return R.drawable.ic_lucide_circle_help;
-            case "printer": return R.drawable.ic_lucide_printer;
-            case "monitor": return R.drawable.ic_lucide_monitor;
-            case "user": return R.drawable.ic_lucide_user;
-            case "clock": return R.drawable.ic_lucide_clock;
-            case "graduation-cap": return R.drawable.ic_lucide_graduation_cap;
-            default: return 0;
-        }
+    /** Ikonen med det namnet (valfri Lucide-ikon, version 1.48.0), eller null om den saknas */
+    static android.graphics.drawable.Drawable icon(android.content.Context context, String name) {
+        return LucideIcons.get(context, name);
     }
 }
