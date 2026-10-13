@@ -38,8 +38,11 @@ public final class ManagedConfig {
         SharedPreferences.Editor e = prefs.edit();
         boolean changed = false;
 
-        String url = values.optString("START_URL", "https://wagnerguide.com/c/kth/kth").trim();
-        if (url.startsWith("https://")) changed |= putString(prefs, e, "url", url);
+        // START_URL saknas: ingen äldre startsida, första tjänsten i APPS är hem (standardadressen används bara
+        // som reserv i appen när enheten varken har START_URL eller några tjänster)
+        String url = values.optString("START_URL", "").trim();
+        if (url.isEmpty()) changed |= putString(prefs, e, "url", "");
+        else if (url.startsWith("https://")) changed |= putString(prefs, e, "url", url);
         else Log.w(TAG, "START_URL är inte https, behåller den nuvarande: " + url);
 
         changed |= putString(prefs, e, "allowedhosts", values.optString("ALLOWED_HOSTS", "kth.se").trim());

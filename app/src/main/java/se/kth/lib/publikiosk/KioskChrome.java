@@ -122,6 +122,7 @@ public class KioskChrome {
         if (apps.size() > KioskApps.TAB_APPS) apps = new java.util.ArrayList<>(apps.subList(0, KioskApps.TAB_APPS));
         Scope explicit = Scope.parse(appScope);
         scope = !apps.isEmpty() ? apps.get(0).scope : (explicit != null ? explicit : Scope.fromStartUrl(startUrl));
+        if (scope == null) scope = new Scope(null, "/");
         homeScopeEn = apps.isEmpty() ? null : apps.get(0).scopeEn;
         landedScope = null;
         mode = navigation == null || navigation.isEmpty() ? "auto" : navigation;

@@ -81,6 +81,8 @@ public class MainActivity extends AppCompatActivity {
     private static final String PREFS_NAME = "MyPrefs";
     private static final String PREF_ALLOWED_HOSTS = "allowedhosts";
     private static final String DEFAULT_ALLOWED_HOSTS = "kth.se";
+    /** Reserv när enheten varken har START_URL eller några tjänster */
+    private static final String DEFAULT_START_URL = "https://wagnerguide.com/c/kth/kth";
     private static final String PREF_CLEAR_SESSION = "clearsession";
     private static final String PREF_INITIAL_SCALE = "initialscale";
     private static final String PREF_ORIENTATION = "orientation";
@@ -625,8 +627,10 @@ public class MainActivity extends AppCompatActivity {
         // Misslyckades redan första laddningen kan WebView sakna adress: börja då från startsidan
         String url = myWeb.getUrl();
         if (launcherMode && launcher.isShown()) return;
-        if (url == null || url.isEmpty() || url.startsWith("about:")) myWeb.loadUrl(startUrl());
-        else myWeb.reload();
+        if (url == null || url.isEmpty() || url.startsWith("about:")) {
+            if (launcherMode) showLauncher(true);
+            else myWeb.loadUrl(startUrl());
+        } else myWeb.reload();
     }
 
     /** Visa eller dölj kiosknavigeringen för sidan som visas. */
@@ -1177,7 +1181,7 @@ public class MainActivity extends AppCompatActivity {
         savedInactivityTimeoutWeb = sharedPreferences.getString(PREFS_INACTIVITY_TIMEOUT_WEB, "30000");
         savedOrientation = sharedPreferences.getInt(PREF_ORIENTATION, 1);
         savedFullscreen = sharedPreferences.getBoolean(PREF_FULLSCREEN, true);
-        savedUrl = sharedPreferences.getString(PREF_URL, "https://wagnerguide.com/c/kth/kth");
+        savedUrl = sharedPreferences.getString(PREF_URL, DEFAULT_START_URL);
         // Förstasida: minst två tjänster. En enda tjänst öppnas direkt (som startsida), ingen: som förut
         launcherMode = false;
         launcherApps = new java.util.ArrayList<>();
@@ -1186,15 +1190,18 @@ public class MainActivity extends AppCompatActivity {
             if (la.size() >= 2) {
                 launcherMode = true;
                 launcherApps = la;
+                savedUrl = "";
             } else if (la.size() == 1) {
-                savedUrl = la.get(0).url("en".equals(savedLanguage));
-                savedApps = "";
+                // Den enda tjänsten är hem (frameApps[0]), så APPS behålls; START_URL används inte med förstasida
+                savedUrl = "";
             }
         }
 
         // Ramen (HOME_MODE=app): APPS med hem först, äldre inställningar får START_URL som första tjänst
         frameApps = launcherMode ? new java.util.ArrayList<>()
                 : KioskApps.forFrame(savedApps, savedUrl, savedStartLabel, savedStartLabelEn, savedStartIcon, savedAppScope);
+        // Reserv: varken START_URL eller tjänster
+        if (frameApps.isEmpty() && savedUrl.isEmpty()) savedUrl = DEFAULT_START_URL;
         orientationSpinner.setSelection(savedOrientation);
         fullscreenCheckbox.setChecked(savedFullscreen);
         urlInput.setText(savedUrl);
