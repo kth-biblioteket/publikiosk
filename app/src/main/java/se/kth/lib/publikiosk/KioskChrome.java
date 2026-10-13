@@ -150,6 +150,20 @@ public class KioskChrome {
         applyTexts();
     }
 
+    /**
+     * Startknappens svenska och engelska rad: START_LABEL och START_LABEL_EN; är START_LABEL tom används
+     * standardtexten (Startsida med förstasida, annars Hem) under START_LABEL_EN, och är båda tomma
+     * standardtexterna på båda språken (Home page / Home).
+     */
+    private String startSv() {
+        return !homeLabel.isEmpty() ? homeLabel : (launcherMode() ? "Startsida" : "Hem");
+    }
+
+    private String startEn() {
+        if (!homeLabelEn.isEmpty()) return homeLabelEn;
+        return homeLabel.isEmpty() ? (launcherMode() ? "Home page" : "Home") : null;
+    }
+
     private boolean launcherMode() {
         return !launcherApps.isEmpty();
     }
@@ -563,17 +577,13 @@ public class KioskChrome {
 
     private void applyTexts() {
         navBack.setLabels("Tillbaka", "Back");
-        if (!homeLabel.isEmpty()) navHome.setLabels(homeLabel, homeLabelEn);
-        else if (launcherMode()) navHome.setLabels("Startsida", "Home page");
-        else navHome.setLabels("Hem", "Home");
+        navHome.setLabels(startSv(), startEn());
         labelAppButtons();
         MaterialButton retry = activity.findViewById(R.id.error_retry);
         setTwo(retry, "Försök igen", "Try again", 20, 14, 28, Bilingual.LIGHT_ON_WHITE);
         // Startknappen på felsidan heter det som START_LABEL anger (på en rad), annars som startknappen i ramen
         MaterialButton errorHome = activity.findViewById(R.id.error_home);
-        if (!homeLabel.isEmpty()) setTwo(errorHome, homeLabel, homeLabelEn.isEmpty() ? null : homeLabelEn, 20, 14, 28, Bilingual.LIGHT_ON_BLUE);
-        else if (launcherMode()) setTwo(errorHome, "Startsida", "Home page", 20, 14, 28, Bilingual.LIGHT_ON_BLUE);
-        else setTwo(errorHome, "Hem", "Home", 20, 14, 28, Bilingual.LIGHT_ON_BLUE);
+        setTwo(errorHome, startSv(), startEn(), 20, 14, 28, Bilingual.LIGHT_ON_BLUE);
         ((TextView) activity.findViewById(R.id.idle_title)).setText(
                 Bilingual.two("Är du kvar?", "Are you still there?", s(20), SUB_TEXT, Fonts.bold(activity)));
         setTwo(activity.findViewById(R.id.idle_continue), "Fortsätt här", "Continue here", 24, 15, -1, Bilingual.LIGHT_ON_BLUE);
