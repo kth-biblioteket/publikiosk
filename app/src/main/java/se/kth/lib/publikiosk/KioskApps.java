@@ -11,7 +11,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Fler webbappar på en enhet. START_URL är hem-appen; APPS listar de övriga, en per post:
+ * Webbappar på en enhet. APPS listar dem, en per post, och den första är hem (som i Linux-kiosken); START_URL
+ * läses bara för äldre inställningar och läggs då först (se forFrame):
  * "Namn|https://adress/|ikon|område|beskrivning|namn_en|beskrivning_en|adress_en", eller en JSON-lista (se parse)
  * när texterna innehåller | , " eller radbrytning. Allt utom namn och adress är
  * valfritt. Området är som APP_SCOPE (värd och sökväg); tomt betyder adressens värd och sökväg som
@@ -23,9 +24,9 @@ import java.util.List;
 final class KioskApps {
 
     private static final String TAG = "KioskApps";
-    /** Högst tolv tjänster (på förstasidan, flera sidor); i ramen hem-appen och högst fem till (se TAB_APPS) */
+    /** Högst tolv tjänster (på förstasidan, flera sidor); i ramen högst sex, med hem-appen som första (se TAB_APPS) */
     static final int MAX_APPS = 12;
-    static final int TAB_APPS = 5;
+    static final int TAB_APPS = 6;
 
     static final class App {
         final String label;
@@ -157,6 +158,33 @@ final class KioskApps {
         }
         apps.add(new App(label, url, icon, scope, desc, labelEn, descEn, urlEn, scopeEn));
         return true;
+    }
+
+    /**
+     * Tjänsterna i ramen (HOME_MODE=app): APPS, där den första är hem. Äldre inställningar har startsidan i
+     * START_URL: den läggs först när dess adress inte redan finns bland tjänsterna (namn START_LABEL eller Hem /
+     * Home, ikon START_ICON, område APP_SCOPE). Högst TAB_APPS.
+     */
+    static List<App> forFrame(String appsRaw, String startUrl, String startLabel, String startIcon, String appScope) {
+        List<App> apps = parse(appsRaw);
+        String url = startUrl == null ? "" : startUrl.trim();
+        if (url.startsWith("https://") && Uri.parse(url).getHost() != null) {
+            boolean present = false;
+            for (App a : apps) {
+                if (UrlPolicy.samePage(a.url, url) || (!a.urlEn.isEmpty() && UrlPolicy.samePage(a.urlEn, url))) present = true;
+            }
+            if (!present) {
+                List<App> withHome = new ArrayList<>();
+                String label = startLabel == null ? "" : startLabel.trim();
+                String icon = startIcon == null || startIcon.trim().isEmpty() ? "house" : startIcon.trim();
+                add(withHome, label.isEmpty() ? "Hem" : label, url, icon, appScope == null ? "" : appScope.trim(),
+                        "", label.isEmpty() ? "Home" : "", "", "", "startsidan");
+                withHome.addAll(apps);
+                apps = withHome;
+            }
+        }
+        if (apps.size() > TAB_APPS) apps = new ArrayList<>(apps.subList(0, TAB_APPS));
+        return apps;
     }
 
     /** Värdarna som apparna ligger på, för listan över tillåtna webbplatser */

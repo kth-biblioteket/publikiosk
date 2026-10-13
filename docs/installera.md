@@ -129,11 +129,16 @@ publicomtools kommer när enheterna ansluts dit.
 
 ### Flera webbappar på en enhet
 
-En enhet som styrs från publicomtools kan ha fler webbappar som besökaren växlar mellan. Startsidan
-(`START_URL`) är hem-appen, och `APPS` listar de andra. De ställs bara in i publicomtools, inte i menyn.
+En enhet som styrs från publicomtools kan ha fler webbappar som besökaren växlar mellan. I läget *En app* är den
+**första tjänsten i `APPS` hem**, som i Linux-kiosken: Hem, *Börja om* och inaktivitet går dit, och den har sitt eget
+namn, engelska namn, ikon, område och engelska adress. De ställs bara in i publicomtools, inte i menyn.
 
-- **Startsidans namn** och **Startsidans ikon** (`START_LABEL`, `START_ICON`): namnet och ikonen på hem-appens knapp. Tomt namn ger *Hem*, standardikonen är ett hus.
-- **Webbappar** (`APPS`): i publicomtools redigeras de i en egen vy med ett kort per app (namn, adress, ikon och avancerat område) som du lägger till, tar bort och drar i ordning. Högst fem (tolv med förstasida). Värdarna blir automatiskt tillåtna webbplatser. Under ytan sparas en app per rad som `Namn|https://adress/|ikon|område|beskrivning|namn_en|beskrivning_en|adress_en`, där allt utom namn och adress är valfritt. Appen läser radbrytning som avgränsare, och komma om det inte finns någon radbrytning. Innehåller någon text tecknen `|`, komma, `"` eller radbrytning sparar publicomtools i stället en JSON-lista (`[{"name":"…","url":"https://…","icon":"…","scope":"…","desc":"…","nameEn":"…","descEn":"…","urlEn":"https://…"}]`), som kräver 3.14.0.
+- **Äldre inställningar** (3.20.0): har enheten en `START_URL` som inte redan finns bland tjänsterna i `APPS` läggs
+  startsidan först som en tjänst: namn `START_LABEL` (tomt: *Hem* / *Home*), ikon `START_ICON`, område `APP_SCOPE`,
+  adress `START_URL`. Befintliga inställningar fungerar därför oförändrade tills de flyttats till `APPS`.
+- **Startsidans namn** och **Startsidans ikon** (`START_LABEL`, `START_ICON`): namnet och ikonen på Startsida-knappen,
+  som visas med förstasida och när enheten bara har en tjänst (då ingen flik). Med flera tjänster har varje flik sitt eget namn och sin egen ikon.
+- **Webbappar** (`APPS`): i publicomtools redigeras de i en egen vy med ett kort per app (namn, adress, ikon och avancerat område) som du lägger till, tar bort och drar i ordning. Högst sex som flikar, hem inräknat (tolv med förstasida). Värdarna blir automatiskt tillåtna webbplatser. Under ytan sparas en app per rad som `Namn|https://adress/|ikon|område|beskrivning|namn_en|beskrivning_en|adress_en`, där allt utom namn och adress är valfritt. Appen läser radbrytning som avgränsare, och komma om det inte finns någon radbrytning. Innehåller någon text tecknen `|`, komma, `"` eller radbrytning sparar publicomtools i stället en JSON-lista (`[{"name":"…","url":"https://…","icon":"…","scope":"…","desc":"…","nameEn":"…","descEn":"…","urlEn":"https://…"}]`), som kräver 3.14.0.
 - **Område** anges som i *Appens område* (värd och sökväg). Tomt betyder adressens värd och sökväg som katalog.
 - **Ikon** är något av namnen `house`, `search`, `map`, `map-pin`, `calendar`, `book-open`, `library`, `info`, `circle-help`, `printer`, `monitor`, `user`, `clock` och `graduation-cap` (Lucide). Utan ikon visas bara namnet.
 
@@ -144,9 +149,9 @@ Sök böcker|https://www.kth.se/biblioteket|search
 Karta|https://wagnerguide.com/c/kth/kth|map
 ```
 
-Med fler appar visas ramen alltid, med Tillbaka och en knapp per app, där den aktiva är markerad. Ett tryck på
+Med fler än en tjänst visas ramen alltid, med Tillbaka och en flik per tjänst (hem först), där den aktiva är markerad. Ett tryck på
 en app ger en ny start i den: dess startsida, utan historik. Hem-appens knapp gör som Hem förut och rensar
-sessionen. Utan `APPS` beter sig enheten som förut: ramen visas bara utanför appen. Ingen ram visas om
+sessionen. Med en enda tjänst beter sig enheten som förut: ramen visas bara utanför appen. Ingen ram visas om
 *Kiosknavigering* är *Aldrig* (skyltar).
 
 ### Förstasida med tjänster

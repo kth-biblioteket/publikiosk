@@ -73,6 +73,8 @@ public class KioskChrome {
 
     private Scope scope = new Scope(null, "/");
     private Scope landedScope = null;
+    /** Hem-appens engelska område (adress_en på en annan värd eller sökväg) */
+    private Scope homeScopeEn = null;
     /** auto: bara utanför appen; always: alltid; none: aldrig (skyltar) */
     private String mode = "auto";
     private boolean english = false;
@@ -112,15 +114,16 @@ public class KioskChrome {
      * namn och ikon och övriga appar (APPS) när enheten har flera.
      */
     public void configure(String startUrl, String appScope, String navigation, String language,
-                          String startLabel, String startIcon, String appsRaw) {
+                          String startLabel, String startIcon, java.util.List<KioskApps.App> appList) {
+        apps = appList == null ? new java.util.ArrayList<>() : new java.util.ArrayList<>(appList);
+        // I ramen får det plats högst sex flikar, hem-appen (den första tjänsten) inräknad
+        if (apps.size() > KioskApps.TAB_APPS) apps = new java.util.ArrayList<>(apps.subList(0, KioskApps.TAB_APPS));
         Scope explicit = Scope.parse(appScope);
-        scope = explicit != null ? explicit : Scope.fromStartUrl(startUrl);
+        scope = !apps.isEmpty() ? apps.get(0).scope : (explicit != null ? explicit : Scope.fromStartUrl(startUrl));
+        homeScopeEn = apps.isEmpty() ? null : apps.get(0).scopeEn;
         landedScope = null;
         mode = navigation == null || navigation.isEmpty() ? "auto" : navigation;
         english = "en".equals(language);
-        apps = KioskApps.parse(appsRaw);
-        // I ramen (utan förstasida) får det plats hem-appen och fem till
-        if (apps.size() > KioskApps.TAB_APPS) apps = new java.util.ArrayList<>(apps.subList(0, KioskApps.TAB_APPS));
         homeLabel = startLabel == null ? "" : startLabel.trim();
         homeIcon = startIcon == null || startIcon.trim().isEmpty() ? "house" : startIcon.trim();
         applyScale();
@@ -153,16 +156,16 @@ public class KioskChrome {
         return null;
     }
 
-    /** Fler än en app: ramen visar en knapp per app i stället för sidans titel */
+    /** Fler än en tjänst: ramen visar en flik per tjänst (hem först) i stället för sidans titel */
     public boolean hasApps() {
-        return !apps.isEmpty();
+        return apps.size() >= 2;
     }
 
-    /** Hem-appen eller en annan app som sidan hör till, annars -1 (en sida utanför apparna) */
+    /** Fliken (0 = hem, den första tjänsten) som sidan hör till, annars -1 (en sida utanför apparna) */
     private int activeApp(String url) {
         if (insideApp(url)) return 0;
-        for (int i = 0; i < apps.size(); i++) {
-            if (apps.get(i).contains(url)) return i + 1;
+        for (int i = 1; i < apps.size(); i++) {
+            if (apps.get(i).contains(url)) return i;
         }
         return -1;
     }
@@ -170,15 +173,15 @@ public class KioskChrome {
     private void buildAppButtons() {
         navApps.removeAllViews();
         appButtons.clear();
-        if (apps.isEmpty()) return;
-        int total = apps.size() + 1;
+        if (!hasApps()) return;
+        int total = apps.size();
         for (int i = 0; i < total; i++) {
             final int index = i;
             NavButton b = new NavButton(activity);
-            b.setIcon(KioskApps.icon(i == 0 ? homeIcon : apps.get(i - 1).icon));
+            b.setIcon(KioskApps.icon(apps.get(i).icon));
             b.setOnClickListener(v -> {
                 if (index == 0) actions.home();
-                else actions.openApp(apps.get(index - 1).url(english));
+                else actions.openApp(apps.get(index).url(english));
             });
             navApps.addView(b);
             appButtons.add(b);
@@ -188,17 +191,11 @@ public class KioskChrome {
         markActive(-1);
     }
 
-    /** Svenska och engelska på varje flik; hem-appen heter START_LABEL om den är satt (då på en rad) */
+    /** Svenska och engelska på varje flik, ur tjänstens namn och namn_en */
     private void labelAppButtons() {
-        for (int i = 0; i < appButtons.size(); i++) {
-            NavButton b = appButtons.get(i);
-            if (i == 0) {
-                if (homeLabel.isEmpty()) b.setLabels("Hem", "Home");
-                else b.setLabels(homeLabel, null);
-            } else {
-                KioskApps.App a = apps.get(i - 1);
-                b.setLabels(a.label, a.labelEn);
-            }
+        for (int i = 0; i < appButtons.size() && i < apps.size(); i++) {
+            KioskApps.App a = apps.get(i);
+            appButtons.get(i).setLabels(a.label, a.labelEn);
         }
     }
 
@@ -223,7 +220,7 @@ public class KioskChrome {
         navBack.setIcon(R.drawable.ic_lucide_chevron_left);
         setSize(navBack, stacked ? s(88) : ViewGroup.LayoutParams.WRAP_CONTENT, h);
         navHome.setStyle(stacked, u);
-        navHome.setIcon(R.drawable.ic_lucide_house);
+        navHome.setIcon(launcherMode() || KioskApps.icon(homeIcon) == 0 ? R.drawable.ic_lucide_house : KioskApps.icon(homeIcon));
         navHome.setActive(true);
         navHome.setMinimumWidth(stacked ? s(88) : 0);
         setSize(navHome, ViewGroup.LayoutParams.WRAP_CONTENT, h);
@@ -426,7 +423,8 @@ public class KioskChrome {
     }
 
     public boolean insideApp(String url) {
-        return scope.contains(url) || (landedScope != null && landedScope.contains(url));
+        return scope.contains(url) || (landedScope != null && landedScope.contains(url))
+                || (homeScopeEn != null && homeScopeEn.contains(url));
     }
 
     /** Visa eller dölj ramen för den sida som visas nu. */
@@ -563,6 +561,7 @@ public class KioskChrome {
     private void applyTexts() {
         navBack.setLabels("Tillbaka", "Back");
         if (launcherMode()) navHome.setLabels("Startsida", "Home page");
+        else if (!homeLabel.isEmpty()) navHome.setLabels(homeLabel, null);
         else navHome.setLabels("Hem", "Home");
         labelAppButtons();
         MaterialButton retry = activity.findViewById(R.id.error_retry);

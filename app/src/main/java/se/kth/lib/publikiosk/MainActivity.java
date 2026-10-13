@@ -136,6 +136,8 @@ public class MainActivity extends AppCompatActivity {
     private String savedInitialScale;
     private boolean savedFullscreen;
     private String savedUrl;
+    /** Tjänsterna i ramen (HOME_MODE=app): APPS, där den första är hem; tom på förstasidan */
+    private java.util.List<KioskApps.App> frameApps = new java.util.ArrayList<>();
     private String savedInactivityTimeout;
     private String savedInactivityTimeoutWeb;
 
@@ -363,7 +365,7 @@ public class MainActivity extends AppCompatActivity {
             public void onReceivedError(WebView view, WebResourceRequest request, android.webkit.WebResourceError error) {
                 super.onReceivedError(view, request, error);
                 if (!request.isForMainFrame()) return;
-                if (UrlPolicy.sameSite(request.getUrl().toString(), savedUrl)) pageLoaded = false;
+                if (isHomeSite(request.getUrl().toString())) pageLoaded = false;
                 // Egen felsida i stället för Chromiums, med Försök igen och Hem
                 chrome.showError(!network.isOnline());
                 scheduleAutoRetry();
@@ -385,7 +387,7 @@ public class MainActivity extends AppCompatActivity {
                     view.loadUrl(https);
                     return;
                 }
-                bridgeAllowed = UrlPolicy.sameSite(url, savedUrl);
+                bridgeAllowed = isHomeSite(url);
                 chrome.hideError();
             }
 
@@ -476,7 +478,7 @@ public class MainActivity extends AppCompatActivity {
         // Ladda url i webview, utan något kvar från förra sessionen
         clearSessionIfEnabled();
         if (launcherMode) showLauncher(false);
-        else myWeb.loadUrl(savedUrl);
+        else myWeb.loadUrl(startUrl());
         isUserNavigation = false;
         isInitialLoading = true;
 
@@ -623,7 +625,7 @@ public class MainActivity extends AppCompatActivity {
         // Misslyckades redan första laddningen kan WebView sakna adress: börja då från startsidan
         String url = myWeb.getUrl();
         if (launcherMode && launcher.isShown()) return;
-        if (url == null || url.isEmpty() || url.startsWith("about:")) myWeb.loadUrl(savedUrl);
+        if (url == null || url.isEmpty() || url.startsWith("about:")) myWeb.loadUrl(startUrl());
         else myWeb.reload();
     }
 
@@ -663,7 +665,7 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         awaitingStart = true;
-        myWeb.loadUrl(savedUrl);
+        myWeb.loadUrl(startUrl());
         // clearHistory gäller först när nästa sida laddats
         clearHistorySoon();
     }
@@ -940,9 +942,28 @@ public class MainActivity extends AppCompatActivity {
      * Startsidan, oavsett snedstreck på slutet, frågeparametrar och # (t ex ?lang=sv), och dit
      * startadressen omdirigerade.
      */
+    /** Hem-appens adress: första tjänsten i APPS (äldre inställningar: START_URL) */
+    private String homeUrl() {
+        return frameApps.isEmpty() ? savedUrl : frameApps.get(0).url;
+    }
+
+    /** Hem-appen på det inställda språket (adress_en när LANGUAGE är English och den finns) */
+    private String startUrl() {
+        return frameApps.isEmpty() ? savedUrl : frameApps.get(0).url("en".equals(savedLanguage));
+    }
+
+    private boolean isHomePage(String url) {
+        if (UrlPolicy.samePage(url, homeUrl())) return true;
+        return !frameApps.isEmpty() && !frameApps.get(0).urlEn.isEmpty() && UrlPolicy.samePage(url, frameApps.get(0).urlEn);
+    }
+
+    private boolean isHomeSite(String url) {
+        return UrlPolicy.sameSite(url, homeUrl()) || UrlPolicy.sameSite(url, startUrl());
+    }
+
     private boolean isStartPage(String url) {
         if (launcherMode) return launcher != null && launcher.isShown();
-        return UrlPolicy.samePage(url, savedUrl) || (landedStartUrl != null && UrlPolicy.samePage(url, landedStartUrl));
+        return isHomePage(url) || (landedStartUrl != null && UrlPolicy.samePage(url, landedStartUrl));
     }
 
     /**
@@ -1170,6 +1191,9 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
+        // Ramen (HOME_MODE=app): APPS med hem först, äldre inställningar får START_URL som första tjänst
+        frameApps = launcherMode ? new java.util.ArrayList<>()
+                : KioskApps.forFrame(savedApps, savedUrl, savedStartLabel, savedStartIcon, savedAppScope);
         orientationSpinner.setSelection(savedOrientation);
         fullscreenCheckbox.setChecked(savedFullscreen);
         urlInput.setText(savedUrl);
@@ -1185,13 +1209,13 @@ public class MainActivity extends AppCompatActivity {
 
     /** Tillåtna webbplatser, och värdarna som de andra apparna ligger på */
     private UrlPolicy newUrlPolicy() {
-        return new UrlPolicy(savedUrl, savedAllowedHosts + KioskApps.hosts(KioskApps.parse(savedApps)));
+        return new UrlPolicy(homeUrl(), savedAllowedHosts + KioskApps.hosts(launcherMode ? KioskApps.parse(savedApps) : frameApps));
     }
 
     private void configureChrome() {
         // På förstasidan visar ramen inga flikar: tjänsterna ligger i launcherApps
-        chrome.configure(savedUrl, savedAppScope, savedNavigation, savedLanguage,
-                savedStartLabel, savedStartIcon, launcherMode ? "" : savedApps);
+        chrome.configure(homeUrl(), savedAppScope, savedNavigation, savedLanguage,
+                savedStartLabel, savedStartIcon, frameApps);
         chrome.setLauncherApps(launcherApps);
         if (launcherMode) chrome.setEnglish(uiEnglish);
         configureLauncher();
