@@ -637,10 +637,31 @@ public class MainActivity extends AppCompatActivity {
     private void refreshChrome(String url) {
         if (chrome == null || myWeb == null) return;
         chrome.update(url, myWeb.getTitle(), myWeb.canGoBack(), keyboardOpen);
+        // Länk till en annan av tjänsterna: den räknas från nu (för statistiken)
+        if (!(launcherMode && launcher != null && launcher.isShown())) {
+            KioskApps.App m = launcherMode ? appContaining(launcherApps, url) : chrome.matchedApp(url);
+            if (m != null) service(m);
+        }
     }
 
     /** Förstasidan visas, och webbsidan under den töms. Språket går tillbaka till det inställda. */
+    /** Tjänsten som används just nu, för besöksstatistiken (null: förstasidan) */
+    private void service(KioskApps.App app) {
+        VisitLog.get(this).setService(app == null ? null : app.url, app == null ? null : app.label);
+    }
+
+    private static KioskApps.App appContaining(java.util.List<KioskApps.App> apps, String url) {
+        for (KioskApps.App a : apps) if (a.contains(url)) return a;
+        return null;
+    }
+
+    private static KioskApps.App appWithUrl(java.util.List<KioskApps.App> apps, String url) {
+        for (KioskApps.App a : apps) if (a.url.equals(url) || (!a.urlEn.isEmpty() && a.urlEn.equals(url))) return a;
+        return null;
+    }
+
     private void showLauncher(boolean keepLanguage) {
+        service(null);
         if (!keepLanguage) uiEnglish = "en".equals(savedLanguage);
         chrome.setEnglish(uiEnglish);
         configureLauncher();
@@ -659,6 +680,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private void returnToStart(String reason) {
         VisitLog.get(this).end(reason);
+        service(launcherMode || frameApps.isEmpty() ? null : frameApps.get(0));
         chrome.hideAll();
         lastActivityAt = System.currentTimeMillis();
         touchedSinceStart = false;
@@ -695,6 +717,8 @@ public class MainActivity extends AppCompatActivity {
      * sessionen rensas inte, det görs vid inaktivitet och med Hem.
      */
     private void openAppUrl(String url) {
+        KioskApps.App opened = appWithUrl(launcherMode ? launcherApps : frameApps, url);
+        if (opened != null) service(opened);
         if (launcher != null && launcher.isShown()) {
             launcher.hide();
             attract.stop();
@@ -1225,6 +1249,7 @@ public class MainActivity extends AppCompatActivity {
         chrome.configure(homeUrl(), savedAppScope, savedNavigation, savedLanguage,
                 savedStartLabel, savedStartLabelEn, savedStartIcon, frameApps);
         chrome.setLauncherApps(launcherApps);
+        if (!launcherMode && !frameApps.isEmpty()) service(frameApps.get(0));
         if (launcherMode) chrome.setEnglish(uiEnglish);
         configureLauncher();
     }

@@ -8,6 +8,9 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 /**
  * Besök för användningsstatistiken i publicomtools. Ett besök är från första trycket efter att
  * startsidan visats till sista trycket innan appen går tillbaka till början (efter inaktivitet,
@@ -16,6 +19,9 @@ import org.json.JSONObject;
  *
  * Ett besök kräver minst tre tryck och minst tio sekunder: ett ensamt tryck (någon nuddar skärmen i
  * förbifarten) eller en kort testkörning räknas inte. Tryck i inställningsmenyn räknas inte heller.
+ *
+ * Tjänster (apps i varje besök): tiden besökaren haft varje tjänst vald, med tjänstens konfigurerade adress och
+ * namn (aldrig sidor eller andra adresser). Tiden på förstasidan räknas inte. Räknas fram till sista aktiviteten.
  *
  * Hem avslutar inte besöket direkt: kommer nästa tryck inom 15 sekunder räknas det som samma besök
  * (någon byter tjänst), annars sparas besöket med Hem som skäl.
@@ -48,6 +54,18 @@ public final class VisitLog {
     private long heldStart = 0, heldLast = 0;
     private int heldPages = 0, heldTaps = 0;
 
+    /** Tjänsten som är vald just nu (null: förstasidan eller ingen) och sedan när den räknas i besöket */
+    private String svcUrl = null, svcName = null;
+    private long svcSince = 0;
+    /** Tid per tjänst (adress → namn och millisekunder) i det pågående besöket, och i besöket som väntar efter Hem */
+    private static final class Svc {
+        String name;
+        long ms;
+    }
+    private Map<String, Svc> usage = new LinkedHashMap<>();
+    private Map<String, Svc> heldUsage = new LinkedHashMap<>();
+    private static final int MAX_SERVICES = 36;
+
     public static synchronized VisitLog get(Context context) {
         if (instance == null) instance = new VisitLog(context.getApplicationContext());
         return instance;
@@ -70,12 +88,15 @@ public final class VisitLog {
                 startedAt = heldStart;
                 pages = heldPages;
                 taps = heldTaps;
+                usage = heldUsage;
                 held = false;
             } else {
                 startedAt = now;
                 pages = 0;
                 taps = 0;
+                usage = new LinkedHashMap<>();
             }
+            if (svcUrl != null) svcSince = now;
         }
         if (newTap) taps++;
         lastActivityAt = now;
@@ -94,6 +115,35 @@ public final class VisitLog {
         lastActivityAt = 0;
         pages = 0;
         taps = 0;
+        usage = new LinkedHashMap<>();
+        svcSince = 0;
+    }
+
+    /**
+     * Tjänsten som besökaren har vald ändras (flik, kort på förstasidan, länk till en annan tjänst), eller null när
+     * förstasidan visas. Bara tjänstens konfigurerade adress (den vanliga, inte den engelska) och namn.
+     */
+    public synchronized void setService(String url, String name) {
+        if (url == null ? svcUrl == null : url.equals(svcUrl)) return;
+        long now = System.currentTimeMillis();
+        if (startedAt != 0) closeSegment(now);
+        svcUrl = url;
+        svcName = name;
+        svcSince = startedAt != 0 && url != null ? now : 0;
+    }
+
+    /** Lägger tiden sedan tjänsten räknades senast till den, fram till until */
+    private void closeSegment(long until) {
+        if (svcUrl != null && svcSince > 0 && until > svcSince) {
+            Svc s = usage.get(svcUrl);
+            if (s == null) {
+                s = new Svc();
+                s.name = svcName == null ? "" : svcName;
+                usage.put(svcUrl, s);
+            }
+            s.ms += until - svcSince;
+        }
+        svcSince = 0;
     }
 
     /** Besökaren gick till en ny sida (inte startsidan) */
@@ -104,9 +154,11 @@ public final class VisitLog {
     /** Besöket är slut: idle, home, config, reboot eller crash */
     public synchronized void end(String reason) {
         if (startedAt == 0) return;
+        closeSegment(Math.max(startedAt, lastActivityAt));
         if ("home".equals(reason)) {
             // Väntar och ser om besöket fortsätter (se MERGE_MS)
             held = true;
+            heldUsage = usage;
             heldStart = startedAt;
             heldLast = Math.max(startedAt, lastActivityAt);
             heldPages = pages;
@@ -114,7 +166,7 @@ public final class VisitLog {
             reset();
             return;
         }
-        save(startedAt, lastActivityAt, pages, taps, reason);
+        save(startedAt, lastActivityAt, pages, taps, reason, usage);
         reset();
     }
 
@@ -122,11 +174,11 @@ public final class VisitLog {
     private void flushHeldIfExpired(long now) {
         if (held && now - heldLast > MERGE_MS) {
             held = false;
-            save(heldStart, heldLast, heldPages, heldTaps, "home");
+            save(heldStart, heldLast, heldPages, heldTaps, "home", heldUsage);
         }
     }
 
-    private void save(long start, long last, int pageCount, int tapCount, String reason) {
+    private void save(long start, long last, int pageCount, int tapCount, String reason, Map<String, Svc> services) {
         if (tapCount < MIN_TAPS || last - start < MIN_DURATION_MS) {
             Log.d(TAG, "Ignorerade " + tapCount + " tryck (inget besök)");
             return;
@@ -138,6 +190,17 @@ public final class VisitLog {
             visit.put("end", Math.max(start, last) / 1000);
             visit.put("reason", reason);
             visit.put("pages", pageCount);
+            JSONArray apps = new JSONArray();
+            for (Map.Entry<String, Svc> e : services.entrySet()) {
+                long seconds = Math.round(e.getValue().ms / 1000.0);
+                if (seconds <= 0 || apps.length() >= MAX_SERVICES) continue;
+                JSONObject app = new JSONObject();
+                app.put("url", e.getKey());
+                app.put("name", e.getValue().name);
+                app.put("s", seconds);
+                apps.put(app);
+            }
+            if (apps.length() > 0) visit.put("apps", apps);
             queue.put(visit);
             JSONArray kept = new JSONArray();
             for (int i = Math.max(0, queue.length() - MAX_QUEUED); i < queue.length(); i++) kept.put(queue.get(i));

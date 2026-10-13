@@ -75,6 +75,8 @@ public class KioskChrome {
 
     private Scope scope = new Scope(null, "/");
     private Scope landedScope = null;
+    /** Fliken som besökaren valde sist (0 = hem), för statistiken när sidan ligger utanför tjänstens område */
+    private int selected = 0;
     /** Hem-appens engelska område (adress_en på en annan värd eller sökväg) */
     private Scope homeScopeEn = null;
     /** auto: bara utanför appen; always: alltid; none: aldrig (skyltar) */
@@ -179,6 +181,12 @@ public class KioskChrome {
         return apps.size() >= 2;
     }
 
+    /** Tjänsten som sidan hör till (ingen: null) */
+    public KioskApps.App matchedApp(String url) {
+        int i = activeApp(url);
+        return i >= 0 && i < apps.size() ? apps.get(i) : null;
+    }
+
     /** Fliken (0 = hem, den första tjänsten) som sidan hör till, annars -1 (en sida utanför apparna) */
     private int activeApp(String url) {
         if (insideApp(url)) return 0;
@@ -198,6 +206,7 @@ public class KioskChrome {
             NavButton b = new NavButton(activity);
             b.setIcon(KioskApps.icon(apps.get(i).icon));
             b.setOnClickListener(v -> {
+                selected = index;
                 if (index == 0) actions.home();
                 else actions.openApp(apps.get(index).url(english));
             });
