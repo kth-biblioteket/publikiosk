@@ -224,26 +224,12 @@ public class LauncherScreen {
                 / activity.getResources().getDisplayMetrics().heightPixels < 0.75f);
         int cols = g[0], rows = g[1];
         float cw = (availW - (cols - 1) * gap) / cols, ch = (availH - (rows - 1) * gap) / rows;
+        // Valet av kortformat görs en gång för alla sidor tillsammans (som Linux-kiosken), så att alla sidor ser likadana ut
+        java.util.List<Plan> plans = planAll(cw, ch);
         for (int p = 0; p < pageCount; p++) {
             LinearLayout pg = new LinearLayout(activity);
             pg.setOrientation(LinearLayout.VERTICAL);
             pg.setPadding(px(padX), px(padY), px(padX), px(padY));
-            // Alla kort på en sida får samma textstorlek: den minsta som något av dem behövde
-            // och samma form: behöver något kort ikonen ovanför texten får alla det
-            int level = 0;
-            for (int i = p * per; i < Math.min(n, (p + 1) * per); i++) level = Math.max(level, Math.min(2, plan(apps.get(i), cw, ch, 0).level));
-            java.util.List<Plan> plans = new java.util.ArrayList<>();
-            float minName = 99, minDesc = 99;
-            for (int i = p * per; i < Math.min(n, (p + 1) * per); i++) {
-                Plan pl = plan(apps.get(i), cw, ch, level);
-                plans.add(pl);
-                minName = Math.min(minName, pl.nameS);
-                minDesc = Math.min(minDesc, pl.descS);
-            }
-            for (Plan pl : plans) {
-                pl.nameS = minName;
-                pl.descS = minDesc;
-            }
             for (int r = 0; r < rows; r++) {
                 LinearLayout line = new LinearLayout(activity);
                 line.setOrientation(LinearLayout.HORIZONTAL);
@@ -254,7 +240,7 @@ public class LauncherScreen {
                     int i = p * per + r * cols + c;
                     LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
                     if (c > 0) clp.leftMargin = px(gap);
-                    if (i < n && i < (p + 1) * per) line.addView(tile(apps.get(i), plans.get(i - p * per), ch), clp);
+                    if (i < n && i < (p + 1) * per) line.addView(tile(apps.get(i), plans.get(i), ch), clp);
                     else line.addView(new View(activity), clp);
                 }
             }
@@ -276,11 +262,13 @@ public class LauncherScreen {
             final int page = p;
             FrameLayout hit = new FrameLayout(activity);
             View dot = new View(activity);
-            FrameLayout.LayoutParams dlp = new FrameLayout.LayoutParams(px(12), px(12), Gravity.CENTER);
+            FrameLayout.LayoutParams dlp = new FrameLayout.LayoutParams(px(24), px(24), Gravity.CENTER);
             hit.addView(dot, dlp);
             hit.setTag(dot);
             hit.setOnClickListener(v -> pager.goTo(page, true));
-            dots.addView(hit, new LinearLayout.LayoutParams(px(36), px(30)));
+            LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(px(56), px(44));
+            if (p > 0) hlp.setMarginStart(px(6));
+            dots.addView(hit, hlp);
         }
         markDots();
     }
@@ -336,7 +324,7 @@ public class LauncherScreen {
             p.padV = 0;
             p.showDesc = ch > 90;
         } else {
-            p.iconD = clamp(36, Math.min(0.36f * ch, 0.40f * cw), 112);
+            p.iconD = clamp(36, Math.min(0.46f * ch, 0.40f * cw), 120);
             p.nameS = clamp(16, Math.min(0.12f * ch, 0.095f * cw), 30);
             p.descS = clamp(12, Math.min(0.07f * ch, 0.055f * cw), 18);
             p.gapD = clamp(6, 0.04f * ch, 14);
@@ -379,35 +367,70 @@ public class LauncherScreen {
         for (int i = 0; i < 24 && p.descS > 12 && !descFits(app, p, cw); i++) p.descS = Math.max(12, p.descS * 0.93f);
     }
 
+    /** En kopia av planen, för varje kort */
+    private static Plan copy(Plan o) {
+        Plan p = new Plan();
+        p.wide = o.wide;
+        p.showDesc = o.showDesc;
+        p.level = o.level;
+        p.iconD = o.iconD;
+        p.nameS = o.nameS;
+        p.descS = o.descS;
+        p.gapD = o.gapD;
+        p.padH = o.padH;
+        p.padV = o.padV;
+        return p;
+    }
+
+    /** Alla tjänster i mallens format, var och en med texten krympt tills dess längsta ord ryms */
+    private java.util.List<Plan> fitAll(Plan template, float cw) {
+        java.util.List<Plan> plans = new java.util.ArrayList<>();
+        for (KioskApps.App app : apps) {
+            Plan p = copy(template);
+            shrinkToFit(app, p, cw);
+            plans.add(p);
+        }
+        return plans;
+    }
+
+    /** Något namn har krympt till under 75 % av sin storlek */
+    private static boolean tooSmall(java.util.List<Plan> plans, Plan base) {
+        for (Plan p : plans) if (p.nameS < 0.75f * base.nameS) return true;
+        return false;
+    }
+
     /**
-     * Som i Linux-kiosken: ryms inte orden krymper först texten (till 75 % av sin storlek), sedan blir ikonen
-     * mindre med mindre luft och texten får krympa mer (breda rader, ikonen till vänster, beskrivningen kvar),
-     * och sist hamnar ikonen ovanför texten (rutor), där texten får krympa ned till 12 px. Ett ord som ändå
+     * Som Linux-kioskens fitText: ett långt ord får inte läcka ur kortet. Först krymper texten (till 75 % av sin
+     * storlek); räcker det inte krymper ikonen i steg om 10 % (till som mest en fjärdedel), därefter läggs ikonen
+     * ovanför texten (rutor), där texten får krympa ned till 12 px. Valet görs en gång för alla sidor (alla kort
+     * ser likadana ut), och alla namn får samma storlek: den minsta som något av dem behövde. Ett ord som ändå
      * inte ryms bryts av radbytet.
      */
-    private Plan plan(KioskApps.App app, float cw, float ch, int minLevel) {
+    private java.util.List<Plan> planAll(float cw, float ch) {
         Plan base = basePlan(cw, ch, false);
-        if (base.wide) {
-            if (minLevel <= 0) {
-                Plan p = basePlan(cw, ch, false);
-                shrinkToFit(app, p, cw);
-                if (p.nameS >= 0.75f * base.nameS) return p;
-            }
-            if (minLevel <= 1) {
+        java.util.List<Plan> plans = fitAll(base, cw);
+        if (tooSmall(plans, base) && base.wide) {
+            float natural = base.iconD, size = natural;
+            boolean ok = false;
+            for (int i = 0; i < 8 && !ok; i++) {
+                size = Math.round(size * 0.9f);
+                if (size < natural * 0.75f) break;
                 Plan q = basePlan(cw, ch, false);
-                q.iconD = Math.min(q.iconD, 64);
-                q.padH = Math.min(q.padH, 14);
-                q.gapD = Math.min(q.gapD, 12);
+                q.iconD = size;
                 q.level = 1;
-                shrinkToFit(app, q, cw);
-                // Breda rader behålls (ikonen till vänster, beskrivningen kvar) så länge namnet går att läsa
-                if (nameFits(app, q, cw) && q.nameS >= 13) return q;
+                plans = fitAll(q, cw);
+                ok = !tooSmall(plans, base);
+            }
+            if (!ok) {
+                Plan s = basePlan(cw, ch, true);
+                s.level = 2;
+                plans = fitAll(s, cw);
             }
         }
-        Plan s = basePlan(cw, ch, true);
-        s.level = 2;
-        shrinkToFit(app, s, cw);
-        return s;
+        float minName = 99;
+        for (Plan p : plans) minName = Math.min(minName, p.nameS);
+        for (Plan p : plans) p.nameS = minName;
+        return plans;
     }
 
     /** Ett kort i en cell på cw × ch skisspixlar: breda rader (ikonen till vänster) eller rutor (ikonen ovanför), som i Linux-kiosken */
