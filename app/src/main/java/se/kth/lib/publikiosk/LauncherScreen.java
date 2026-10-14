@@ -2,6 +2,7 @@ package se.kth.lib.publikiosk;
 
 import android.app.Activity;
 import android.content.res.Configuration;
+import android.util.DisplayMetrics;
 import android.util.TypedValue;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
@@ -218,7 +219,8 @@ public class LauncherScreen {
         int n = apps.size();
         int per = Math.max(1, Math.min(perPage, Math.max(1, n)));
         pageCount = Math.max(1, (n + per - 1) / per);
-        float padX = portrait ? 48 : 56, padY = portrait ? 32 : 28, gap = 24;
+        float[] pm = pageMetrics();
+        float padX = pm[0], padY = pm[1], gap = pm[2];
         float availW = wPx / u - 2 * padX, availH = hPx / u - 2 * padY;
         int[] g = gridFor(per, availW, availH, (float) activity.getResources().getDisplayMetrics().widthPixels
                 / activity.getResources().getDisplayMetrics().heightPixels < 0.75f);
@@ -516,16 +518,61 @@ public class LauncherScreen {
     }
 
     /** Huvudets mått som i skissen, skalade till skärmen */
+    /** Skärmens höjd i skisspixlar (Linux: viewporthöjden i CSS-pixlar efter zoom); 1 vh = en hundradel */
+    private float vh() {
+        return realSize().y / u / 100f;
+    }
+
+    /** Skärmens riktiga storlek, med systemfälten (Linux räknar hela fönstret) */
+    private android.graphics.Point realSize() {
+        android.graphics.Point p = new android.graphics.Point();
+        activity.getWindowManager().getDefaultDisplay().getRealSize(p);
+        return p;
+    }
+
+    /** Stående men nästan kvadratisk (bredare än 3:4, t.ex. 1024×1280): tunnare huvud, som Linux-kiosken */
+    private boolean nearSquare() {
+        android.graphics.Point size = realSize();
+        float aspect = (float) size.x / size.y;
+        return portrait && aspect >= 0.75f && aspect <= 1f;
+    }
+
+    /** Sidornas marginaler och mellanrum (padX, padY, gap) i skisspixlar, som launcher.html i Linux-kiosken */
+    private float[] pageMetrics() {
+        if (!portrait) return new float[]{56, 28, 24};
+        if (nearSquare()) return new float[]{40, 24, 20};
+        return new float[]{48, clamp(16, 2.5f * vh(), 32), clamp(12, 1.9f * vh(), 24)};
+    }
+
     private void layoutHeader(boolean portrait) {
-        headRow.setPadding(px(portrait ? 48 : 56), px(portrait ? 104 : 36), px(portrait ? 48 : 56), px(portrait ? 160 : 36));
-        LinearLayout.LayoutParams llp = new LinearLayout.LayoutParams(px(portrait ? 86 : 110), px(portrait ? 96 : 123));
+        boolean thin = nearSquare();
+        float top = !portrait ? 36 : thin ? clamp(32, 3.5f * vh(), 44) : clamp(60, 8.125f * vh(), 104);
+        float bottom = !portrait ? 36 : thin ? clamp(28, 3.1f * vh(), 40) : clamp(36, 12.5f * vh(), 160);
+        float titleSize = !portrait ? 76 : thin ? 54 : clamp(48, 5.2f * vh(), 66);
+        headRow.setPadding(px(portrait ? 48 : 56), px(top), px(portrait ? 48 : 56), px(bottom));
+        LinearLayout.LayoutParams llp = new LinearLayout.LayoutParams(px(!portrait ? 110 : thin ? 70 : 86), px(!portrait ? 123 : thin ? 78 : 96));
         logo.setLayoutParams(llp);
         View text = (View) title.getParent();
         // Landskap: rubriken bryts före mönstret, så att ingen text hamnar över det
         text.setPadding(px(32), 0, portrait ? 0 : px(250 + 24), 0);
-        label.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(portrait ? 26 : 28));
-        title.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(portrait ? 66 : 76));
+        label.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(28));
+        title.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(titleSize));
         subtitle.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(28));
+        // Som i Linux: 8 mellan raderna, etikett och underrubrik med radhöjd 1,2 (33,6) och rubrik med 1,05, räknat ur
+        // typsnittets verkliga radhöjd här (Android och Chrome ger lite olika höjd för samma typsnitt)
+        for (TextView t : new TextView[]{label, subtitle}) {
+            t.setIncludeFontPadding(false);
+            t.setMinHeight(px(33.6f));
+            t.setGravity(Gravity.CENTER_VERTICAL);
+        }
+        title.setIncludeFontPadding(false);
+        android.graphics.Paint.FontMetrics fm = title.getPaint().getFontMetrics();
+        float natural = (fm.descent - fm.ascent) / u;
+        int gapPx = px(8 - (natural - 1.05f * titleSize) / 2f);
+        LinearLayout.LayoutParams tlp = (LinearLayout.LayoutParams) title.getLayoutParams();
+        tlp.topMargin = gapPx;
+        tlp.bottomMargin = gapPx;
+        title.setLayoutParams(tlp);
         language.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(18));
         language.setPadding(px(20), 0, px(20), 0);
         language.setCompoundDrawablePadding(px(10));
@@ -533,9 +580,10 @@ public class LauncherScreen {
         lp.topMargin = px(28);
         lp.rightMargin = px(portrait ? 48 : 56);
         language.setLayoutParams(lp);
-        // Mönstret: nedre högra hörnet, vänt upp och ner, under språkknappen
+        // Mönstret: nedre högra hörnet, vänt upp och ner, under språkknappen (borta i det tunna huvudet)
         FrameLayout.LayoutParams plp = new FrameLayout.LayoutParams(px(portrait ? 260 : 250), px(portrait ? 160 : 153), Gravity.BOTTOM | Gravity.END);
         pattern.setLayoutParams(plp);
+        pattern.setVisibility(thin ? View.GONE : View.VISIBLE);
     }
 
     private int px(float designPx) {
