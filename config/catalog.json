@@ -10,7 +10,7 @@
     { "id": "teknik", "label": "Teknik" }
   ],
   "keys": [
-    { "key": "COMPUTER_NAME", "label": "Visningsnamn", "group": "enhet", "type": "string", "perComputer": true,
+    { "key": "COMPUTER_NAME", "label": "Visningsnamn", "group": "enhet", "type": "string", "perComputer": true, "computerOnly": true,
       "help": "Enhetens namn, t ex i statusrapporten." },
     { "key": "START_URL", "label": "Startsida", "group": "startsida", "type": "url", "advanced": true, "default": "https://wagnerguide.com/c/kth/kth",
       "help": "Äldre inställning: hem-appen är nu den första tjänsten i Webbappar. START_URL läses bara när dess adress inte redan finns bland tjänsterna, och läggs då först (namn Startsidans namn, ikon Startsidans ikon, område Appens område). Måste börja med https://. Ange den exakt som servern svarar, t ex med / på slutet." },
