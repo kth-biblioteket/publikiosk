@@ -198,6 +198,8 @@ public class SignageScreen {
         SignSchedule.Choice c = schedule == null ? new SignSchedule.Choice("default", null, false)
                 : schedule.choose(java.util.Calendar.getInstance());
         if (!first && c.key.equals(currentKey)) return;
+        // Från svart skärm eller en sida som inte gick att ladda: den nya listan börjar direkt (inget att visa bakom)
+        boolean direct = first || "off".equals(currentKey) || (pages[active].hasFailed() && !pages[active].isOk());
         currentKey = c.key;
         handler.removeCallbacksAndMessages(null);
         if (c.black) {
@@ -213,8 +215,11 @@ public class SignageScreen {
             overlay.error(true, false);
             return;
         }
-        if (first) show(0);
-        else {
+        if (direct) {
+            overlay.error(false, false);
+            container.setBackgroundColor(android.graphics.Color.BLACK);
+            show(0);
+        } else {
             // Byte av lista: börja direkt på första sidan i den nya, förladdad bakom den som visas
             pages[1 - active].load(list.get(0).url);
             handler.postDelayed(() -> swapTo(0, 0), 800);
