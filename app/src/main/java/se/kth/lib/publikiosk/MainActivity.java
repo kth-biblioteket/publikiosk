@@ -118,7 +118,7 @@ public class MainActivity extends AppCompatActivity {
     /** HOME_MODE=signage: sidor i tur och ordning i helskärm, bara visa */
     private SignageScreen signage;
     private boolean signageMode = false;
-    private String savedSignPages = "";
+    private String savedSignPages = "", savedSignSchedule = "";
     private int savedSignSeconds = 30;
     private boolean savedSignJs = true;
     /** Första trycket tog bort attract loopen: resten av samma tryck går inte vidare */
@@ -687,6 +687,14 @@ public class MainActivity extends AppCompatActivity {
      * Tillbaka till startsidan: ny besökare, ny session. reason (idle, home, config) är varför
      * besöket tog slut, för statistiken.
      */
+    /** Alla sidor skylten kan visa (standardlistan och schemats listor), för listan över tillåtna webbplatser */
+    private java.util.List<SignageScreen.Page> signagePages() {
+        java.util.List<SignageScreen.Page> all = new java.util.ArrayList<>(SignageScreen.parse(savedSignPages, savedSignSeconds, homeUrl()));
+        SignSchedule sc = SignSchedule.parse(savedSignSchedule, savedSignSeconds);
+        if (sc != null) all.addAll(sc.allPages());
+        return all;
+    }
+
     /** Skylten (re)startar från första sidan, med inställningarna som gäller nu */
     private void startSignage() {
         chrome.hideAll();
@@ -697,7 +705,7 @@ public class MainActivity extends AppCompatActivity {
         } catch (NumberFormatException ignored) {
             // standard
         }
-        signage.configure(SignageScreen.parse(savedSignPages, savedSignSeconds, homeUrl()), savedSignJs, scale, newUrlPolicy(),
+        signage.configure(SignageScreen.parse(savedSignPages, savedSignSeconds, homeUrl()), SignSchedule.parse(savedSignSchedule, savedSignSeconds), savedSignJs, scale, newUrlPolicy(),
                 new SignageScreen.Overlay() {
                     @Override
                     public void error(boolean show, boolean offline) {
@@ -1219,6 +1227,7 @@ public class MainActivity extends AppCompatActivity {
         savedAppScope = sharedPreferences.getString("appscope", "");
         savedApps = sharedPreferences.getString("apps", "");
         savedSignPages = sharedPreferences.getString("signpages", "");
+        savedSignSchedule = sharedPreferences.getString("signschedule", "");
         savedSignSeconds = sharedPreferences.getInt("signseconds", 30);
         savedSignJs = sharedPreferences.getBoolean("signjs", true);
         savedHomeMode = sharedPreferences.getString("homemode", "app");
@@ -1293,7 +1302,7 @@ public class MainActivity extends AppCompatActivity {
     /** Tillåtna webbplatser, och värdarna som de andra apparna ligger på */
     private UrlPolicy newUrlPolicy() {
         return new UrlPolicy(homeUrl(), savedAllowedHosts + KioskApps.hosts(launcherMode ? KioskApps.parse(savedApps) : frameApps)
-                + (signageMode ? SignageScreen.hosts(SignageScreen.parse(savedSignPages, savedSignSeconds, homeUrl())) : ""));
+                + (signageMode ? SignageScreen.hosts(signagePages()) : ""));
     }
 
     private void configureChrome() {

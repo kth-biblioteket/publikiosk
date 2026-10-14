@@ -91,6 +91,7 @@ public final class ManagedConfig {
         changed |= putInt(prefs, e, "launcherperpage", perPage);
         changed |= putInt(prefs, e, "launcherrefresh", intValue(values, "LAUNCHER_REFRESH", 1, 1, 60));
         changed |= putString(prefs, e, "signpages", values.optString("SIGN_PAGES", "").trim());
+        changed |= putString(prefs, e, "signschedule", values.optString("SIGN_SCHEDULE", "").trim());
         changed |= putInt(prefs, e, "signseconds", intValue(values, "SIGN_SECONDS", 30, 5, 3600));
         changed |= putBoolean(prefs, e, "signjs", bool(values, "SIGN_JS", true));
         changed |= putString(prefs, e, "apps", values.optString("APPS", "").trim());

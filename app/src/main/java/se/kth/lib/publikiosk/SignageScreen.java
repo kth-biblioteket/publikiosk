@@ -58,6 +58,10 @@ public class SignageScreen {
     private UrlPolicy policy;
     private Overlay overlay;
     private List<Page> list = new ArrayList<>();
+    private List<Page> defaultList = new ArrayList<>();
+    private SignSchedule schedule = null;
+    private String currentKey = "";
+    private final Handler tickHandler = new Handler(Looper.getMainLooper());
     private int index = 0, active = 0;
     private boolean running = false;
 
@@ -150,7 +154,9 @@ public class SignageScreen {
         return sb.toString();
     }
 
-    public void configure(List<Page> pages, boolean scripts, int scalePercent, UrlPolicy policy, Overlay overlay) {
+    public void configure(List<Page> pages, SignSchedule schedule, boolean scripts, int scalePercent, UrlPolicy policy, Overlay overlay) {
+        this.defaultList = pages;
+        this.schedule = schedule;
         this.list = pages;
         this.policy = policy;
         this.overlay = overlay;
@@ -171,12 +177,48 @@ public class SignageScreen {
         views[1].setVisibility(View.VISIBLE);
         active = 0;
         raise();
+        currentKey = "";
+        applySchedule(true);
+        tickHandler.removeCallbacksAndMessages(null);
+        tickHandler.postDelayed(tick, 20_000);
+    }
+
+    /** Varje 20 sekunder: gäller en annan lista nu börjar den direkt */
+    private final Runnable tick = new Runnable() {
+        @Override
+        public void run() {
+            if (!running) return;
+            applySchedule(false);
+            tickHandler.postDelayed(this, 20_000);
+        }
+    };
+
+    /** Väljer listan som gäller nu (schema, annars standardlistan, eller svart skärm) och startar den om den ändrats */
+    private void applySchedule(boolean first) {
+        SignSchedule.Choice c = schedule == null ? new SignSchedule.Choice("default", null, false)
+                : schedule.choose(java.util.Calendar.getInstance());
+        if (!first && c.key.equals(currentKey)) return;
+        currentKey = c.key;
+        handler.removeCallbacksAndMessages(null);
+        if (c.black) {
+            // Svart skärm: sidorna släpps och inget visas
+            for (SandboxedPage p : pages) p.clear();
+            overlay.error(false, false);
+            container.setBackgroundColor(android.graphics.Color.BLACK);
+            return;
+        }
+        list = c.pages != null ? c.pages : defaultList;
         if (list.isEmpty()) {
             // Inget att visa: felsidan står kvar tills inställningarna ändrats
             overlay.error(true, false);
             return;
         }
-        show(0);
+        if (first) show(0);
+        else {
+            // Byte av lista: börja direkt på första sidan i den nya, förladdad bakom den som visas
+            pages[1 - active].load(list.get(0).url);
+            handler.postDelayed(() -> swapTo(0, 0), 800);
+        }
         // En enda sida laddas om med jämna mellanrum
         if (list.size() == 1) handler.postDelayed(new Runnable() {
             @Override
@@ -191,6 +233,7 @@ public class SignageScreen {
     public void stop() {
         running = false;
         handler.removeCallbacksAndMessages(null);
+        tickHandler.removeCallbacksAndMessages(null);
         for (SandboxedPage p : pages) p.clear();
         if (overlay != null) overlay.error(false, false);
         container.setVisibility(View.GONE);
