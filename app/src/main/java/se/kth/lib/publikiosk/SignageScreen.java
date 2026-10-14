@@ -154,13 +154,16 @@ public class SignageScreen {
         return sb.toString();
     }
 
-    public void configure(List<Page> pages, SignSchedule schedule, boolean scripts, int scalePercent, UrlPolicy policy, Overlay overlay) {
+    public void configure(List<Page> pages, SignSchedule schedule, boolean scripts, boolean openResources, int scalePercent, UrlPolicy policy, Overlay overlay) {
         this.defaultList = pages;
         this.schedule = schedule;
         this.list = pages;
         this.policy = policy;
         this.overlay = overlay;
-        for (SandboxedPage p : this.pages) p.configure(scripts, false, scalePercent);
+        for (SandboxedPage p : this.pages) {
+            p.configure(scripts, false, scalePercent);
+            p.openResources(openResources);
+        }
         for (SandboxedPage p : this.pages) p.lockInput();
     }
 

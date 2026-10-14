@@ -38,6 +38,8 @@ final class SandboxedPage {
     private String loaded = "";
     /** Skylt: omdirigeringar till tillåtna webbplatser följs (länkar och skript som navigerar nekas fortfarande) */
     private boolean followRedirects = false;
+    /** Skylt: delresurser (inte själva sidan) får hämtas från vilken https-adress som helst */
+    private boolean openResources = false;
     /** Sidan har laddats utan fel (sedan senaste load) och när, så att skylten vet när den är klar att visas */
     private boolean ok = false;
     private long okAt = 0;
@@ -72,6 +74,7 @@ final class SandboxedPage {
             public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest request) {
                 String url = request.getUrl().toString();
                 if (url.startsWith("data:") || host.allows(url)) return null;
+                if (openResources && !request.isForMainFrame() && url.startsWith("https://")) return null;
                 return new WebResourceResponse("text/plain", "utf-8", 403, "Forbidden", null, new ByteArrayInputStream(new byte[0]));
             }
 
@@ -116,6 +119,10 @@ final class SandboxedPage {
 
     long okAt() {
         return okAt;
+    }
+
+    void openResources(boolean open) {
+        openResources = open;
     }
 
     void followRedirects(boolean follow) {
