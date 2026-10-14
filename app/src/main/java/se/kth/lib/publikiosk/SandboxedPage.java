@@ -36,6 +36,11 @@ final class SandboxedPage {
     /** Det pågående försöket har gått fel (Chromiums felsida räknas inte som en lyckad sida) */
     private boolean attemptFailed = false;
     private String loaded = "";
+    /** Skylt: omdirigeringar till tillåtna webbplatser följs (länkar och skript som navigerar nekas fortfarande) */
+    private boolean followRedirects = false;
+    /** Sidan har laddats utan fel (sedan senaste load) och när, så att skylten vet när den är klar att visas */
+    private boolean ok = false;
+    private long okAt = 0;
 
     SandboxedPage(WebView view, Host host) {
         this.view = view;
@@ -58,6 +63,8 @@ final class SandboxedPage {
         view.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest request) {
+                // Nekas, utom en omdirigering till en tillåten webbplats när det är inställt
+                if (followRedirects && request.isRedirect() && host.allows(request.getUrl().toString())) return false;
                 return true;
             }
 
@@ -80,6 +87,10 @@ final class SandboxedPage {
 
             @Override
             public void onPageFinished(WebView v, String url) {
+                if (!attemptFailed && url != null && !url.startsWith("about:")) {
+                    ok = true;
+                    okAt = System.currentTimeMillis();
+                }
                 if (failed && !attemptFailed && url != null && !url.startsWith("about:")) {
                     failed = false;
                     host.recovered();
@@ -98,6 +109,30 @@ final class SandboxedPage {
         return failed;
     }
 
+    /** Laddad utan fel sedan senaste load */
+    boolean isOk() {
+        return ok;
+    }
+
+    long okAt() {
+        return okAt;
+    }
+
+    void followRedirects(boolean follow) {
+        followRedirects = follow;
+    }
+
+    /** All inmatning ignoreras: tryck, mushjul, tangenter, ingen zoom och ingen fokus */
+    void lockInput() {
+        view.setOnTouchListener((v, e) -> true);
+        view.setOnGenericMotionListener((v, e) -> true);
+        view.setFocusable(false);
+        view.setFocusableInTouchMode(false);
+        view.getSettings().setSupportZoom(false);
+        view.getSettings().setBuiltInZoomControls(false);
+        view.getSettings().setDisplayZoomControls(false);
+    }
+
     /** scalePercent: 100 × skärmbredden / designbredden, så att sidan fyller bredden */
     void configure(boolean scripts, boolean touch, int scalePercent) {
         view.getSettings().setJavaScriptEnabled(scripts);
@@ -110,6 +145,7 @@ final class SandboxedPage {
     void load(String url) {
         if (url == null || url.isEmpty() || !host.allows(url)) return;
         attemptFailed = false;
+        ok = false;
         if (loaded.equals(url)) view.reload();
         else {
             loaded = url;
@@ -124,6 +160,7 @@ final class SandboxedPage {
         }
         failed = false;
         attemptFailed = false;
+        ok = false;
     }
 
     void pause() {

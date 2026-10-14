@@ -58,7 +58,8 @@ public final class ManagedConfig {
         if (!navigation.equals("always") && !navigation.equals("none")) navigation = "auto";
         changed |= putString(prefs, e, "navigation", navigation);
         changed |= putString(prefs, e, "appscope", values.optString("APP_SCOPE", "").trim());
-        String homeMode = "launcher".equals(values.optString("HOME_MODE", "app").trim()) ? "launcher" : "app";
+        String homeModeValue = values.optString("HOME_MODE", "app").trim();
+        String homeMode = "launcher".equals(homeModeValue) || "signage".equals(homeModeValue) ? homeModeValue : "app";
         changed |= putString(prefs, e, "homemode", homeMode);
         changed |= putString(prefs, e, "launchertitle", values.optString("LAUNCHER_TITLE", "").trim());
         changed |= putString(prefs, e, "launchersubtitle", values.optString("LAUNCHER_SUBTITLE", "").trim());
@@ -89,6 +90,9 @@ public final class ManagedConfig {
         if (perPage % 2 != 0) perPage = 4;
         changed |= putInt(prefs, e, "launcherperpage", perPage);
         changed |= putInt(prefs, e, "launcherrefresh", intValue(values, "LAUNCHER_REFRESH", 1, 1, 60));
+        changed |= putString(prefs, e, "signpages", values.optString("SIGN_PAGES", "").trim());
+        changed |= putInt(prefs, e, "signseconds", intValue(values, "SIGN_SECONDS", 30, 5, 3600));
+        changed |= putBoolean(prefs, e, "signjs", bool(values, "SIGN_JS", true));
         changed |= putString(prefs, e, "apps", values.optString("APPS", "").trim());
         changed |= putString(prefs, e, "startlabel", values.optString("START_LABEL", "").trim());
         changed |= putString(prefs, e, "startlabel_en", values.optString("START_LABEL_EN", "").trim());

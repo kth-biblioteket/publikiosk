@@ -115,6 +115,12 @@ public class MainActivity extends AppCompatActivity {
     private int savedAttractAfter = 120, savedAttractRefresh = 10;
     private boolean savedAttractJs = false;
     private AttractScreen attract;
+    /** HOME_MODE=signage: sidor i tur och ordning i helskärm, bara visa */
+    private SignageScreen signage;
+    private boolean signageMode = false;
+    private String savedSignPages = "";
+    private int savedSignSeconds = 30;
+    private boolean savedSignJs = true;
     /** Första trycket tog bort attract loopen: resten av samma tryck går inte vidare */
     private boolean swallowGesture = false;
     private String savedLauncherTitleEn = "", savedLauncherSubtitleEn = "", savedLauncherFooterEn = "";
@@ -235,9 +241,11 @@ public class MainActivity extends AppCompatActivity {
             }
         });
         attract = new AttractScreen(this);
+        signage = new SignageScreen(this);
         // Sidan laddas om av sig själv när nätet kommer (t ex wifi efter en omstart)
         network = new NetworkWatcher(this, () -> {
-            if (chrome.isErrorShown()) retryLoad();
+            if (signageMode) signage.retryNow();
+            else if (chrome.isErrorShown()) retryLoad();
             // Saknades nätet när appen startade blev uppdateringskontrollen aldrig av: gör den nu
             if (autoUpdate != null && !AutoUpdate.hasChecked()) autoUpdate.checkForUpdate();
         });
@@ -480,6 +488,7 @@ public class MainActivity extends AppCompatActivity {
         // Ladda url i webview, utan något kvar från förra sessionen
         clearSessionIfEnabled();
         if (launcherMode) showLauncher(false);
+        else if (signageMode) startSignage();
         else myWeb.loadUrl(startUrl());
         isUserNavigation = false;
         isInitialLoading = true;
@@ -678,7 +687,40 @@ public class MainActivity extends AppCompatActivity {
      * Tillbaka till startsidan: ny besökare, ny session. reason (idle, home, config) är varför
      * besöket tog slut, för statistiken.
      */
+    /** Skylten (re)startar från första sidan, med inställningarna som gäller nu */
+    private void startSignage() {
+        chrome.hideAll();
+        myWeb.loadUrl("about:blank");
+        int scale = 100;
+        try {
+            scale = Integer.parseInt(savedInitialScale.trim());
+        } catch (NumberFormatException ignored) {
+            // standard
+        }
+        signage.configure(SignageScreen.parse(savedSignPages, savedSignSeconds, homeUrl()), savedSignJs, scale, newUrlPolicy(),
+                new SignageScreen.Overlay() {
+                    @Override
+                    public void error(boolean show, boolean offline) {
+                        if (show) chrome.showError(offline, true);
+                        else if (chrome.isErrorShown()) chrome.hideError();
+                    }
+
+                    @Override
+                    public void loaded(boolean ok) {
+                        if (ok) pageLoaded = true;
+                    }
+                });
+        signage.start();
+    }
+
     private void returnToStart(String reason) {
+        if (signageMode) {
+            // Skylten har inga besökare: nya inställningar startar om rotationen
+            VisitLog.get(this).end(reason);
+            startSignage();
+            return;
+        }
+        if (signage != null && signage.isRunning()) signage.stop();
         VisitLog.get(this).end(reason);
         service(launcherMode || frameApps.isEmpty() ? null : frameApps.get(0));
         chrome.hideAll();
@@ -1005,6 +1047,11 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void run() {
             try {
+                if (signageMode) {
+                    // Skylten har ingen inaktivitet att vänta på
+                    inactivityHandler.postDelayed(this, IDLE_CHECK_INTERVAL_MS);
+                    return;
+                }
                 long idle = System.currentTimeMillis() - lastActivityAt;
                 boolean onStart = isStartPage(myWeb.getUrl());
                 long limit = Long.parseLong(onStart ? savedInactivityTimeout : savedInactivityTimeoutWeb);
@@ -1054,7 +1101,7 @@ public class MainActivity extends AppCompatActivity {
         touchedSinceStart = true;
         // Tryck i inställningsmenyn är personal, inget besök
         if (drawerLayout == null || !drawerLayout.isDrawerOpen(Gravity.LEFT)) {
-            VisitLog.get(this).activity(ev.getActionMasked() == MotionEvent.ACTION_DOWN);
+            if (!signageMode) VisitLog.get(this).activity(ev.getActionMasked() == MotionEvent.ACTION_DOWN);
         }
         return super.dispatchTouchEvent(ev);
     }
@@ -1073,7 +1120,7 @@ public class MainActivity extends AppCompatActivity {
                 return true;
             }
             touchedSinceStart = true;
-            if (drawerLayout == null || !drawerLayout.isDrawerOpen(Gravity.LEFT)) VisitLog.get(this).activity(false);
+            if (!signageMode && (drawerLayout == null || !drawerLayout.isDrawerOpen(Gravity.LEFT))) VisitLog.get(this).activity(false);
         }
         return super.dispatchGenericMotionEvent(ev);
     }
@@ -1171,7 +1218,11 @@ public class MainActivity extends AppCompatActivity {
         savedNavigation = sharedPreferences.getString("navigation", "auto");
         savedAppScope = sharedPreferences.getString("appscope", "");
         savedApps = sharedPreferences.getString("apps", "");
+        savedSignPages = sharedPreferences.getString("signpages", "");
+        savedSignSeconds = sharedPreferences.getInt("signseconds", 30);
+        savedSignJs = sharedPreferences.getBoolean("signjs", true);
         savedHomeMode = sharedPreferences.getString("homemode", "app");
+        signageMode = "signage".equals(savedHomeMode);
         savedLauncherTitle = sharedPreferences.getString("launchertitle", "");
         savedLauncherSubtitle = sharedPreferences.getString("launchersubtitle", "");
         savedLauncherFooter = sharedPreferences.getString("launcherfooter", "");
@@ -1241,10 +1292,12 @@ public class MainActivity extends AppCompatActivity {
 
     /** Tillåtna webbplatser, och värdarna som de andra apparna ligger på */
     private UrlPolicy newUrlPolicy() {
-        return new UrlPolicy(homeUrl(), savedAllowedHosts + KioskApps.hosts(launcherMode ? KioskApps.parse(savedApps) : frameApps));
+        return new UrlPolicy(homeUrl(), savedAllowedHosts + KioskApps.hosts(launcherMode ? KioskApps.parse(savedApps) : frameApps)
+                + (signageMode ? SignageScreen.hosts(SignageScreen.parse(savedSignPages, savedSignSeconds, homeUrl())) : ""));
     }
 
     private void configureChrome() {
+        chrome.setSignage(signageMode);
         // På förstasidan visar ramen inga flikar: tjänsterna ligger i launcherApps
         chrome.configure(homeUrl(), savedAppScope, savedNavigation, savedLanguage,
                 savedStartLabel, savedStartLabelEn, savedStartIcon, frameApps);

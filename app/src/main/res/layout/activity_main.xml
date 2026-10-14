@@ -225,6 +225,27 @@
                 android:textSize="16sp"/>
         </LinearLayout>
 
+        <!-- Skylt (HOME_MODE=signage): två webbvyer över varandra, den aktiva överst. Byggs i SignageScreen. -->
+        <FrameLayout
+            android:id="@+id/signage_page"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:background="@android:color/black"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+            <WebView
+                android:id="@+id/signage_view_a"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"/>
+            <WebView
+                android:id="@+id/signage_view_b"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"/>
+        </FrameLayout>
+
         <!-- Attract loop: helskärmssida från en adress när förstasidan står orörd. Byggs i AttractScreen. -->
         <WebView
             android:id="@+id/attract_view"

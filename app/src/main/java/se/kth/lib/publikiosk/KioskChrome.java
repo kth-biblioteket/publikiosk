@@ -82,6 +82,12 @@ public class KioskChrome {
     /** auto: bara utanför appen; always: alltid; none: aldrig (skyltar) */
     private String mode = "auto";
     private boolean english = false;
+    /** Skylt: ingen navigering */
+    private boolean signage = false;
+
+    public void setSignage(boolean on) {
+        signage = on;
+    }
 
     public KioskChrome(Activity activity, Actions actions) {
         this.activity = activity;
@@ -459,6 +465,10 @@ public class KioskChrome {
 
     /** Visa eller dölj ramen för den sida som visas nu. */
     public void update(String url, String title, boolean canGoBack, boolean keyboardOpen) {
+        if (signage) {
+            navBar.setVisibility(View.GONE);
+            return;
+        }
         if (launcherMode()) {
             // Tjänsten som visas: Tillbaka, tjänstens namn och Startsida (till förstasidan)
             boolean showBar = !launcherVisible && !keyboardOpen && !"none".equals(mode);
@@ -563,14 +573,26 @@ public class KioskChrome {
      * laddas då om av sig själv när nätet kommer, och texten säger det.
      */
     public void showError(boolean offline) {
+        showError(offline, false);
+    }
+
+    /**
+     * signage: felsidan på en skylt, utan knappar (ingen kan trycka): sidan laddas om av sig själv.
+     */
+    public void showError(boolean offline, boolean signage) {
         ((TextView) activity.findViewById(R.id.error_title)).setText(offline
                 ? Bilingual.two("Väntar på nätverket…", "Waiting for the network…", s(22), SUB_TEXT, Fonts.bold(activity))
                 : Bilingual.two("Sidan kunde inte laddas", "The page could not be loaded", s(22), SUB_TEXT, Fonts.bold(activity)));
         ((TextView) activity.findViewById(R.id.error_text)).setText(offline
                 ? Bilingual.two("Sidan laddas av sig själv så snart skärmen är ansluten.",
                         "The page loads by itself as soon as the screen is connected.", s(16), SUB_TEXT, Fonts.regular(activity))
+                : signage
+                ? Bilingual.two("Sidan laddas om av sig själv.", "The page reloads by itself.", s(16), SUB_TEXT, Fonts.regular(activity))
                 : Bilingual.two("Det kan vara ett tillfälligt nätverksfel. Försök igen, eller börja om från början.",
                         "It may be a temporary network problem. Try again, or start over.", s(16), SUB_TEXT, Fonts.regular(activity)));
+        int buttons = signage ? View.GONE : View.VISIBLE;
+        activity.findViewById(R.id.error_retry).setVisibility(buttons);
+        activity.findViewById(R.id.error_home).setVisibility(buttons);
         errorPage.setVisibility(View.VISIBLE);
     }
 
