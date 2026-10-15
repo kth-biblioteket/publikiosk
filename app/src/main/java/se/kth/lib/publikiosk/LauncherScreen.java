@@ -2,6 +2,7 @@ package se.kth.lib.publikiosk;
 
 import android.app.Activity;
 import android.content.res.Configuration;
+import android.util.DisplayMetrics;
 import android.util.TypedValue;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
@@ -218,32 +219,19 @@ public class LauncherScreen {
         int n = apps.size();
         int per = Math.max(1, Math.min(perPage, Math.max(1, n)));
         pageCount = Math.max(1, (n + per - 1) / per);
-        float padX = portrait ? 48 : 56, padY = portrait ? 32 : 28, gap = 24;
+        float[] pm = pageMetrics();
+        float padX = pm[0], padY = pm[1], gap = pm[2];
         float availW = wPx / u - 2 * padX, availH = hPx / u - 2 * padY;
         int[] g = gridFor(per, availW, availH, (float) activity.getResources().getDisplayMetrics().widthPixels
                 / activity.getResources().getDisplayMetrics().heightPixels < 0.75f);
         int cols = g[0], rows = g[1];
         float cw = (availW - (cols - 1) * gap) / cols, ch = (availH - (rows - 1) * gap) / rows;
+        // Valet av kortformat görs en gång för alla sidor tillsammans (som Linux-kiosken), så att alla sidor ser likadana ut
+        java.util.List<Plan> plans = planAll(cw, ch);
         for (int p = 0; p < pageCount; p++) {
             LinearLayout pg = new LinearLayout(activity);
             pg.setOrientation(LinearLayout.VERTICAL);
             pg.setPadding(px(padX), px(padY), px(padX), px(padY));
-            // Alla kort på en sida får samma textstorlek: den minsta som något av dem behövde
-            // och samma form: behöver något kort ikonen ovanför texten får alla det
-            int level = 0;
-            for (int i = p * per; i < Math.min(n, (p + 1) * per); i++) level = Math.max(level, Math.min(2, plan(apps.get(i), cw, ch, 0).level));
-            java.util.List<Plan> plans = new java.util.ArrayList<>();
-            float minName = 99, minDesc = 99;
-            for (int i = p * per; i < Math.min(n, (p + 1) * per); i++) {
-                Plan pl = plan(apps.get(i), cw, ch, level);
-                plans.add(pl);
-                minName = Math.min(minName, pl.nameS);
-                minDesc = Math.min(minDesc, pl.descS);
-            }
-            for (Plan pl : plans) {
-                pl.nameS = minName;
-                pl.descS = minDesc;
-            }
             for (int r = 0; r < rows; r++) {
                 LinearLayout line = new LinearLayout(activity);
                 line.setOrientation(LinearLayout.HORIZONTAL);
@@ -254,7 +242,7 @@ public class LauncherScreen {
                     int i = p * per + r * cols + c;
                     LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
                     if (c > 0) clp.leftMargin = px(gap);
-                    if (i < n && i < (p + 1) * per) line.addView(tile(apps.get(i), plans.get(i - p * per), ch), clp);
+                    if (i < n && i < (p + 1) * per) line.addView(tile(apps.get(i), plans.get(i), ch), clp);
                     else line.addView(new View(activity), clp);
                 }
             }
@@ -276,11 +264,13 @@ public class LauncherScreen {
             final int page = p;
             FrameLayout hit = new FrameLayout(activity);
             View dot = new View(activity);
-            FrameLayout.LayoutParams dlp = new FrameLayout.LayoutParams(px(12), px(12), Gravity.CENTER);
+            FrameLayout.LayoutParams dlp = new FrameLayout.LayoutParams(px(24), px(24), Gravity.CENTER);
             hit.addView(dot, dlp);
             hit.setTag(dot);
             hit.setOnClickListener(v -> pager.goTo(page, true));
-            dots.addView(hit, new LinearLayout.LayoutParams(px(36), px(30)));
+            LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(px(56), px(44));
+            if (p > 0) hlp.setMarginStart(px(6));
+            dots.addView(hit, hlp);
         }
         markDots();
     }
@@ -336,7 +326,7 @@ public class LauncherScreen {
             p.padV = 0;
             p.showDesc = ch > 90;
         } else {
-            p.iconD = clamp(36, Math.min(0.36f * ch, 0.40f * cw), 112);
+            p.iconD = clamp(36, Math.min(0.46f * ch, 0.40f * cw), 120);
             p.nameS = clamp(16, Math.min(0.12f * ch, 0.095f * cw), 30);
             p.descS = clamp(12, Math.min(0.07f * ch, 0.055f * cw), 18);
             p.gapD = clamp(6, 0.04f * ch, 14);
@@ -379,35 +369,70 @@ public class LauncherScreen {
         for (int i = 0; i < 24 && p.descS > 12 && !descFits(app, p, cw); i++) p.descS = Math.max(12, p.descS * 0.93f);
     }
 
+    /** En kopia av planen, för varje kort */
+    private static Plan copy(Plan o) {
+        Plan p = new Plan();
+        p.wide = o.wide;
+        p.showDesc = o.showDesc;
+        p.level = o.level;
+        p.iconD = o.iconD;
+        p.nameS = o.nameS;
+        p.descS = o.descS;
+        p.gapD = o.gapD;
+        p.padH = o.padH;
+        p.padV = o.padV;
+        return p;
+    }
+
+    /** Alla tjänster i mallens format, var och en med texten krympt tills dess längsta ord ryms */
+    private java.util.List<Plan> fitAll(Plan template, float cw) {
+        java.util.List<Plan> plans = new java.util.ArrayList<>();
+        for (KioskApps.App app : apps) {
+            Plan p = copy(template);
+            shrinkToFit(app, p, cw);
+            plans.add(p);
+        }
+        return plans;
+    }
+
+    /** Något namn har krympt till under 75 % av sin storlek */
+    private static boolean tooSmall(java.util.List<Plan> plans, Plan base) {
+        for (Plan p : plans) if (p.nameS < 0.75f * base.nameS) return true;
+        return false;
+    }
+
     /**
-     * Som i Linux-kiosken: ryms inte orden krymper först texten (till 75 % av sin storlek), sedan blir ikonen
-     * mindre med mindre luft och texten får krympa mer (breda rader, ikonen till vänster, beskrivningen kvar),
-     * och sist hamnar ikonen ovanför texten (rutor), där texten får krympa ned till 12 px. Ett ord som ändå
+     * Som Linux-kioskens fitText: ett långt ord får inte läcka ur kortet. Först krymper texten (till 75 % av sin
+     * storlek); räcker det inte krymper ikonen i steg om 10 % (till som mest en fjärdedel), därefter läggs ikonen
+     * ovanför texten (rutor), där texten får krympa ned till 12 px. Valet görs en gång för alla sidor (alla kort
+     * ser likadana ut), och alla namn får samma storlek: den minsta som något av dem behövde. Ett ord som ändå
      * inte ryms bryts av radbytet.
      */
-    private Plan plan(KioskApps.App app, float cw, float ch, int minLevel) {
+    private java.util.List<Plan> planAll(float cw, float ch) {
         Plan base = basePlan(cw, ch, false);
-        if (base.wide) {
-            if (minLevel <= 0) {
-                Plan p = basePlan(cw, ch, false);
-                shrinkToFit(app, p, cw);
-                if (p.nameS >= 0.75f * base.nameS) return p;
-            }
-            if (minLevel <= 1) {
+        java.util.List<Plan> plans = fitAll(base, cw);
+        if (tooSmall(plans, base) && base.wide) {
+            float natural = base.iconD, size = natural;
+            boolean ok = false;
+            for (int i = 0; i < 8 && !ok; i++) {
+                size = Math.round(size * 0.9f);
+                if (size < natural * 0.75f) break;
                 Plan q = basePlan(cw, ch, false);
-                q.iconD = Math.min(q.iconD, 64);
-                q.padH = Math.min(q.padH, 14);
-                q.gapD = Math.min(q.gapD, 12);
+                q.iconD = size;
                 q.level = 1;
-                shrinkToFit(app, q, cw);
-                // Breda rader behålls (ikonen till vänster, beskrivningen kvar) så länge namnet går att läsa
-                if (nameFits(app, q, cw) && q.nameS >= 13) return q;
+                plans = fitAll(q, cw);
+                ok = !tooSmall(plans, base);
+            }
+            if (!ok) {
+                Plan s = basePlan(cw, ch, true);
+                s.level = 2;
+                plans = fitAll(s, cw);
             }
         }
-        Plan s = basePlan(cw, ch, true);
-        s.level = 2;
-        shrinkToFit(app, s, cw);
-        return s;
+        float minName = 99;
+        for (Plan p : plans) minName = Math.min(minName, p.nameS);
+        for (Plan p : plans) p.nameS = minName;
+        return plans;
     }
 
     /** Ett kort i en cell på cw × ch skisspixlar: breda rader (ikonen till vänster) eller rutor (ikonen ovanför), som i Linux-kiosken */
@@ -493,16 +518,61 @@ public class LauncherScreen {
     }
 
     /** Huvudets mått som i skissen, skalade till skärmen */
+    /** Skärmens höjd i skisspixlar (Linux: viewporthöjden i CSS-pixlar efter zoom); 1 vh = en hundradel */
+    private float vh() {
+        return realSize().y / u / 100f;
+    }
+
+    /** Skärmens riktiga storlek, med systemfälten (Linux räknar hela fönstret) */
+    private android.graphics.Point realSize() {
+        android.graphics.Point p = new android.graphics.Point();
+        activity.getWindowManager().getDefaultDisplay().getRealSize(p);
+        return p;
+    }
+
+    /** Stående men nästan kvadratisk (bredare än 3:4, t.ex. 1024×1280): tunnare huvud, som Linux-kiosken */
+    private boolean nearSquare() {
+        android.graphics.Point size = realSize();
+        float aspect = (float) size.x / size.y;
+        return portrait && aspect >= 0.75f && aspect <= 1f;
+    }
+
+    /** Sidornas marginaler och mellanrum (padX, padY, gap) i skisspixlar, som launcher.html i Linux-kiosken */
+    private float[] pageMetrics() {
+        if (!portrait) return new float[]{56, 28, 24};
+        if (nearSquare()) return new float[]{40, 24, 20};
+        return new float[]{48, clamp(16, 2.5f * vh(), 32), clamp(12, 1.9f * vh(), 24)};
+    }
+
     private void layoutHeader(boolean portrait) {
-        headRow.setPadding(px(portrait ? 48 : 56), px(portrait ? 104 : 36), px(portrait ? 48 : 56), px(portrait ? 160 : 36));
-        LinearLayout.LayoutParams llp = new LinearLayout.LayoutParams(px(portrait ? 86 : 110), px(portrait ? 96 : 123));
+        boolean thin = nearSquare();
+        float top = !portrait ? 36 : thin ? clamp(32, 3.5f * vh(), 44) : clamp(60, 8.125f * vh(), 104);
+        float bottom = !portrait ? 36 : thin ? clamp(28, 3.1f * vh(), 40) : clamp(36, 12.5f * vh(), 160);
+        float titleSize = !portrait ? 76 : thin ? 54 : clamp(48, 5.2f * vh(), 66);
+        headRow.setPadding(px(portrait ? 48 : 56), px(top), px(portrait ? 48 : 56), px(bottom));
+        LinearLayout.LayoutParams llp = new LinearLayout.LayoutParams(px(!portrait ? 110 : thin ? 70 : 86), px(!portrait ? 123 : thin ? 78 : 96));
         logo.setLayoutParams(llp);
         View text = (View) title.getParent();
         // Landskap: rubriken bryts före mönstret, så att ingen text hamnar över det
         text.setPadding(px(32), 0, portrait ? 0 : px(250 + 24), 0);
-        label.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(portrait ? 26 : 28));
-        title.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(portrait ? 66 : 76));
+        label.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(28));
+        title.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(titleSize));
         subtitle.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(28));
+        // Som i Linux: 8 mellan raderna, etikett och underrubrik med radhöjd 1,2 (33,6) och rubrik med 1,05, räknat ur
+        // typsnittets verkliga radhöjd här (Android och Chrome ger lite olika höjd för samma typsnitt)
+        for (TextView t : new TextView[]{label, subtitle}) {
+            t.setIncludeFontPadding(false);
+            t.setMinHeight(px(33.6f));
+            t.setGravity(Gravity.CENTER_VERTICAL);
+        }
+        title.setIncludeFontPadding(false);
+        android.graphics.Paint.FontMetrics fm = title.getPaint().getFontMetrics();
+        float natural = (fm.descent - fm.ascent) / u;
+        int gapPx = px(8 - (natural - 1.05f * titleSize) / 2f);
+        LinearLayout.LayoutParams tlp = (LinearLayout.LayoutParams) title.getLayoutParams();
+        tlp.topMargin = gapPx;
+        tlp.bottomMargin = gapPx;
+        title.setLayoutParams(tlp);
         language.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(18));
         language.setPadding(px(20), 0, px(20), 0);
         language.setCompoundDrawablePadding(px(10));
@@ -510,9 +580,10 @@ public class LauncherScreen {
         lp.topMargin = px(28);
         lp.rightMargin = px(portrait ? 48 : 56);
         language.setLayoutParams(lp);
-        // Mönstret: nedre högra hörnet, vänt upp och ner, under språkknappen
+        // Mönstret: nedre högra hörnet, vänt upp och ner, under språkknappen (borta i det tunna huvudet)
         FrameLayout.LayoutParams plp = new FrameLayout.LayoutParams(px(portrait ? 260 : 250), px(portrait ? 160 : 153), Gravity.BOTTOM | Gravity.END);
         pattern.setLayoutParams(plp);
+        pattern.setVisibility(thin ? View.GONE : View.VISIBLE);
     }
 
     private int px(float designPx) {
