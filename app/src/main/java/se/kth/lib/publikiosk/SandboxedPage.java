@@ -1,5 +1,6 @@
 package se.kth.lib.publikiosk;
 
+import android.util.Log;
 import android.view.View;
 import android.webkit.CookieManager;
 import android.webkit.WebResourceError;
@@ -42,6 +43,8 @@ final class SandboxedPage {
     private boolean openResources = false;
     /** Sidan har laddats utan fel (sedan senaste load) och när, så att skylten vet när den är klar att visas */
     private boolean ok = false;
+    /** Det senaste felet beror på nätverket (DNS, anslutning, tidsgräns) och inte på sidan */
+    private boolean netError = false;
     private long okAt = 0;
 
     SandboxedPage(WebView view, Host host) {
@@ -80,12 +83,22 @@ final class SandboxedPage {
 
             @Override
             public void onReceivedError(WebView v, WebResourceRequest request, WebResourceError error) {
-                if (request.isForMainFrame()) fail();
+                if (request.isForMainFrame()) {
+                    int code = error.getErrorCode();
+                    netError = isNetworkError(code);
+                    Log.w("SandboxedPage", "Sidan gick inte att ladda: " + error.getDescription() + " (kod " + code + ", "
+                            + (netError ? "nätverksfel" : "sidfel") + ") " + request.getUrl());
+                    fail();
+                }
             }
 
             @Override
             public void onReceivedHttpError(WebView v, WebResourceRequest request, WebResourceResponse errorResponse) {
-                if (request.isForMainFrame() && errorResponse.getStatusCode() >= 400) fail();
+                if (request.isForMainFrame() && errorResponse.getStatusCode() >= 400) {
+                    netError = false;
+                    Log.w("SandboxedPage", "Sidan svarade " + errorResponse.getStatusCode() + " " + request.getUrl());
+                    fail();
+                }
             }
 
             @Override
@@ -106,6 +119,17 @@ final class SandboxedPage {
         failed = true;
         attemptFailed = true;
         host.failed();
+    }
+
+    /** Nätverksfel som räknas som nätverk även om länken är uppe: DNS, anslutning, tidsgräns, in/ut, TLS-handskakning */
+    private static boolean isNetworkError(int code) {
+        return code == WebViewClient.ERROR_HOST_LOOKUP || code == WebViewClient.ERROR_CONNECT || code == WebViewClient.ERROR_TIMEOUT
+                || code == WebViewClient.ERROR_IO || code == WebViewClient.ERROR_FAILED_SSL_HANDSHAKE;
+    }
+
+    /** Det senaste felet beror på nätverket (inte på själva sidan) */
+    boolean netError() {
+        return failed && netError;
     }
 
     boolean hasFailed() {
@@ -153,6 +177,7 @@ final class SandboxedPage {
         if (url == null || url.isEmpty() || !host.allows(url)) return;
         attemptFailed = false;
         ok = false;
+        netError = false;
         if (loaded.equals(url)) view.reload();
         else {
             loaded = url;
@@ -168,6 +193,7 @@ final class SandboxedPage {
         failed = false;
         attemptFailed = false;
         ok = false;
+        netError = false;
     }
 
     void pause() {

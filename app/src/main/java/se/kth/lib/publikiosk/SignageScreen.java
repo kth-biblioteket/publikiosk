@@ -6,6 +6,7 @@ import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.View;
 import android.webkit.WebView;
 import android.widget.FrameLayout;
@@ -44,7 +45,10 @@ public class SignageScreen {
     }
 
     static final int MIN_S = 5, MAX_S = 3600, MAX_PAGES = 36;
-    private static final long RETRY_MS = 30_000;
+    private static final String TAG = "SignageScreen";
+    private static final long RETRY_MS = 30_000;       // sidfel provas igen efter så här länge
+    private static final long RETRY_NET_MS = 10_000;   // nätverksfel provas igen snabbare
+    private static final long SKIP_MS = 10_000;        // en misslyckad sida lämnas efter så här länge (om listan har fler sidor)
     private static final int PRELOAD_S = 10;        // nästa sida börjar laddas så här många sekunder före bytet
     private static final long SETTLE_MS = 1500;     // tid efter laddning för att skripten ska hinna rita klart
     private static final long MAX_WAIT_MS = 10_000; // väntar högst så här länge på en sida som inte är färdig vid bytet
@@ -61,6 +65,8 @@ public class SignageScreen {
     private List<Page> defaultList = new ArrayList<>();
     private SignSchedule schedule = null;
     private String currentKey = "";
+    /** Varje ny planering av förladdning och byte får ett nummer; äldre planer som väntar ogiltigförklaras */
+    private int generation = 0;
     private final Handler tickHandler = new Handler(Looper.getMainLooper());
     private int index = 0, active = 0;
     private boolean running = false;
@@ -204,7 +210,9 @@ public class SignageScreen {
         // Från svart skärm eller en sida som inte gick att ladda: den nya listan börjar direkt (inget att visa bakom)
         boolean direct = first || "off".equals(currentKey) || (pages[active].hasFailed() && !pages[active].isOk());
         currentKey = c.key;
+        generation++;
         handler.removeCallbacksAndMessages(null);
+        Log.i(TAG, "Lista: " + (c.black ? "svart skärm" : c.pages == null ? "standardlistan" : c.key.substring(5)));
         if (c.black) {
             // Svart skärm: sidorna släpps och inget visas
             for (SandboxedPage p : pages) p.clear();
@@ -225,7 +233,8 @@ public class SignageScreen {
         } else {
             // Byte av lista: börja direkt på första sidan i den nya, förladdad bakom den som visas
             pages[1 - active].load(list.get(0).url);
-            handler.postDelayed(() -> swapTo(0, 0), 800);
+            final int g = ++generation;
+            handler.postDelayed(() -> swapTo(0, 0, g), 800);
         }
         // En enda sida laddas om med jämna mellanrum
         if (list.size() == 1) handler.postDelayed(new Runnable() {
@@ -268,13 +277,36 @@ public class SignageScreen {
     private void settle() {
         SandboxedPage cur = pages[active];
         boolean failed = cur.hasFailed() && !cur.isOk();
+        // Ett fel som beror på nätverket (DNS, anslutning, tidsgräns) räknas som nätverk även om länken är uppe
+        boolean net = failed && (cur.netError() || !isOnline());
         if (overlay != null) {
-            overlay.error(failed, failed && !isOnline());
+            overlay.error(failed, net);
             overlay.loaded(cur.isOk());
         }
         handler.removeCallbacks(retry);
-        if (failed) handler.postDelayed(retry, RETRY_MS);
+        handler.removeCallbacks(skip);
+        if (failed) {
+            long retryMs = net ? RETRY_NET_MS : RETRY_MS;
+            handler.postDelayed(retry, retryMs);
+            Log.w(TAG, "Felsidan visas (" + (net ? "nätverksfel (DNS eller ingen anslutning)" : "sidan gick inte att ladda")
+                    + "), försöker igen om " + retryMs / 1000 + " s" + (list.size() > 1 ? ", går vidare till nästa sida om " + SKIP_MS / 1000 + " s" : ""));
+            if (list.size() > 1) handler.postDelayed(skip, SKIP_MS);
+        }
     }
+
+    /** Den aktiva sidan gick inte att ladda: rotationen går vidare till nästa, som laddas direkt */
+    private final Runnable skip = new Runnable() {
+        @Override
+        public void run() {
+            SandboxedPage cur = pages[active];
+            if (!running || list.size() < 2 || !(cur.hasFailed() && !cur.isOk())) return;
+            int next = (index + 1) % list.size();
+            Log.i(TAG, "Lämnar sidan som inte gick att ladda, nästa: " + list.get(next).url);
+            int g = ++generation;
+            pages[1 - active].load(list.get(next).url);
+            handler.postDelayed(() -> swapTo(next, 0, g), 500);
+        }
+    };
 
     private final Runnable retry = new Runnable() {
         @Override
@@ -289,20 +321,21 @@ public class SignageScreen {
         Page p = list.get(index);
         final int next = (index + 1) % list.size();
         final int lead = Math.min(PRELOAD_S, Math.max(1, p.seconds - 2));
+        final int g = ++generation;
         handler.postDelayed(() -> {
-            if (!running) return;
+            if (!running || g != generation) return;
             pages[1 - active].load(list.get(next).url);
-            handler.postDelayed(() -> swapTo(next, 0), lead * 1000L);
+            handler.postDelayed(() -> swapTo(next, 0, g), lead * 1000L);
         }, (p.seconds - lead) * 1000L);
     }
 
     /** Byter till den förladdade vyn när nästa sida är klar (eller efter MAX_WAIT_MS) */
-    private void swapTo(final int next, final long waited) {
-        if (!running) return;
+    private void swapTo(final int next, final long waited, final int g) {
+        if (!running || g != generation) return;
         SandboxedPage standby = pages[1 - active];
         boolean ready = standby.isOk() && System.currentTimeMillis() - standby.okAt() >= SETTLE_MS;
         if (!ready && !standby.hasFailed() && waited < MAX_WAIT_MS) {
-            handler.postDelayed(() -> swapTo(next, waited + 500), 500);
+            handler.postDelayed(() -> swapTo(next, waited + 500, g), 500);
             return;
         }
         final int old = active;
