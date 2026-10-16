@@ -73,7 +73,7 @@
     { "key": "START_ICON", "label": "Startsidans ikon", "group": "startsida", "type": "string", "default": "house", "example": "house",
       "help": "Namnet på en Lucide-ikon (lucide.dev/icons), version 1.48.0. Ikonen på Startsida-knappen: med förstasida, och när enheten bara har en tjänst. Med flera tjänster har varje flik sin egen ikon (första tjänsten är hem). Tomt ger house." },
     { "key": "SIGN_SCHEDULE", "label": "Schema och spellistor", "group": "skylt", "types": ["signage"], "type": "string",
-      "help": "När olika spellistor visas: veckodagar, klockslag och datum. Ingen tid som gäller: Standardlista, eller svart skärm om off är på. Redigeras i admin under Skylt." },
+      "help": "När olika spellistor visas: veckodagar, klockslag och datum. Ingen tid som gäller: Standardlista, eller svart skärm om off är på. Sidor och spellistor kan ha datum. Redigeras i admin under Skylt." },
     { "key": "SIGN_PAGES", "label": "Standardlista", "group": "skylt", "types": ["signage"], "type": "string", "example": "[{\"url\":\"https://apps.lib.kth.se/skylt/a\",\"s\":30},{\"url\":\"https://apps.lib.kth.se/skylt/b\",\"s\":45}]",
       "help": "Sidorna som visas i tur och ordning när inget i schemat gäller: en JSON-lista [{\"url\":\"https://…\",\"s\":30}], s = sekunder (annars Tid per sida). Tomt: startsidan. Redigeras i admin under Skylt." },
     { "key": "SIGN_SECONDS", "label": "Tid per sida", "group": "skylt", "types": ["signage"], "type": "int", "unit": "sekunder", "default": "30",

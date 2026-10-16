@@ -705,7 +705,7 @@ public class MainActivity extends AppCompatActivity {
         } catch (NumberFormatException ignored) {
             // standard
         }
-        signage.configure(SignageScreen.parse(savedSignPages, savedSignSeconds, homeUrl()), SignSchedule.parse(savedSignSchedule, savedSignSeconds), savedSignJs, savedSignResourcesAll, scale, newUrlPolicy(),
+        signage.configure(SignageScreen.parse(savedSignPages, savedSignSeconds, homeUrl()), homeUrl(), SignSchedule.parse(savedSignSchedule, savedSignSeconds), savedSignJs, savedSignResourcesAll, scale, newUrlPolicy(),
                 new SignageScreen.Overlay() {
                     @Override
                     public void error(boolean show, boolean offline) {

@@ -29,11 +29,36 @@ public class SignageScreen {
     static final class Page {
         final String url;
         final int seconds;
+        final String start, end; // första och sista dag (YYYY-MM-DD, inklusive), null = ingen gräns
 
-        Page(String url, int seconds) {
+        Page(String url, int seconds, String start, String end) {
             this.url = url;
             this.seconds = seconds;
+            this.start = start;
+            this.end = end;
         }
+
+        boolean on(String date) {
+            return (start == null || date.compareTo(start) >= 0) && (end == null || date.compareTo(end) <= 0);
+        }
+    }
+
+    /** Sidorna som gäller på dagen (YYYY-MM-DD) */
+    static List<Page> on(List<Page> pages, String date) {
+        List<Page> out = new ArrayList<>();
+        for (Page p : pages) if (p.on(date)) out.add(p);
+        return out;
+    }
+
+    static String today(java.util.Calendar c) {
+        return String.format(java.util.Locale.ROOT, "%04d-%02d-%02d", c.get(java.util.Calendar.YEAR), c.get(java.util.Calendar.MONTH) + 1, c.get(java.util.Calendar.DAY_OF_MONTH));
+    }
+
+    /** Nyckel för vilka sidor som visas, så att en ändring (en sida går ut eller börjar gälla) märks */
+    static String signature(List<Page> pages) {
+        StringBuilder sb = new StringBuilder();
+        for (Page p : pages) sb.append(p.url).append('|');
+        return Integer.toHexString(sb.toString().hashCode());
     }
 
     interface Overlay {
@@ -63,6 +88,7 @@ public class SignageScreen {
     private Overlay overlay;
     private List<Page> list = new ArrayList<>();
     private List<Page> defaultList = new ArrayList<>();
+    private String startUrl = "";
     private SignSchedule schedule = null;
     private String currentKey = "";
     /** Varje ny planering av förladdning och byte får ett nummer; äldre planer som väntar ogiltigförklaras */
@@ -113,7 +139,7 @@ public class SignageScreen {
                 JSONArray array = new JSONArray(text);
                 for (int i = 0; i < array.length(); i++) {
                     JSONObject o = array.optJSONObject(i);
-                    if (o != null) add(out, o.optString("url", ""), o.has("s") ? o.optString("s") : null, def);
+                    if (o != null) add(out, o.optString("url", ""), o.has("s") ? o.optString("s") : null, def, date(o, "start"), date(o, "end"));
                 }
             } catch (org.json.JSONException ignored) {
                 // tolkas som rader
@@ -124,15 +150,21 @@ public class SignageScreen {
             for (String line : lines) {
                 if (line.trim().isEmpty()) continue;
                 int bar = line.lastIndexOf('|');
-                if (bar > 0 && line.substring(bar + 1).trim().matches("\\d+")) add(out, line.substring(0, bar), line.substring(bar + 1), def);
-                else add(out, line, null, def);
+                if (bar > 0 && line.substring(bar + 1).trim().matches("\\d+")) add(out, line.substring(0, bar), line.substring(bar + 1), def, null, null);
+                else add(out, line, null, def, null, null);
             }
         }
-        if (out.isEmpty()) add(out, fallbackUrl, null, def);
+        if (out.isEmpty()) add(out, fallbackUrl, null, def, null, null);
         return out;
     }
 
-    private static void add(List<Page> out, String url, String seconds, int def) {
+    /** Datumfält på en sida; saknas eller är ogiltigt: ingen gräns */
+    private static String date(JSONObject o, String key) {
+        String d = o.optString(key, "");
+        return d.matches("\\d{4}-\\d{2}-\\d{2}") ? d : null;
+    }
+
+    private static void add(List<Page> out, String url, String seconds, int def, String start, String end) {
         String u = url == null ? "" : url.trim();
         if (!u.startsWith("https://") || android.net.Uri.parse(u).getHost() == null || out.size() >= MAX_PAGES) return;
         int s = def;
@@ -143,7 +175,7 @@ public class SignageScreen {
                 s = def;
             }
         }
-        out.add(new Page(u, s));
+        out.add(new Page(u, s, start, end));
     }
 
     private static int clamp(int s, int def) {
@@ -160,8 +192,9 @@ public class SignageScreen {
         return sb.toString();
     }
 
-    public void configure(List<Page> pages, SignSchedule schedule, boolean scripts, boolean openResources, int scalePercent, UrlPolicy policy, Overlay overlay) {
+    public void configure(List<Page> pages, String startUrl, SignSchedule schedule, boolean scripts, boolean openResources, int scalePercent, UrlPolicy policy, Overlay overlay) {
         this.defaultList = pages;
+        this.startUrl = startUrl;
         this.schedule = schedule;
         this.list = pages;
         this.policy = policy;
@@ -204,15 +237,24 @@ public class SignageScreen {
 
     /** Väljer listan som gäller nu (schema, annars standardlistan, eller svart skärm) och startar den om den ändrats */
     private void applySchedule(boolean first) {
+        java.util.Calendar now = java.util.Calendar.getInstance();
         SignSchedule.Choice c = schedule == null ? new SignSchedule.Choice("default", null, false)
-                : schedule.choose(java.util.Calendar.getInstance());
-        if (!first && c.key.equals(currentKey)) return;
+                : schedule.choose(now);
+        // Standardlistan filtreras på dagen; ingen sida kvar: startsidan
+        List<Page> shown = c.pages;
+        String key = c.key;
+        if (!c.black && shown == null) {
+            shown = on(defaultList, today(now));
+            if (shown.isEmpty() && !startUrl.isEmpty()) shown = parse("", 30, startUrl);
+            key = "default#" + signature(shown);
+        }
+        if (!first && key.equals(currentKey)) return;
         // Från svart skärm eller en sida som inte gick att ladda: den nya listan börjar direkt (inget att visa bakom)
         boolean direct = first || "off".equals(currentKey) || (pages[active].hasFailed() && !pages[active].isOk());
-        currentKey = c.key;
+        currentKey = key;
         generation++;
         handler.removeCallbacksAndMessages(null);
-        Log.i(TAG, "Lista: " + (c.black ? "svart skärm" : c.pages == null ? "standardlistan" : c.key.substring(5)));
+        Log.i(TAG, "Lista: " + (c.black ? "svart skärm" : c.pages == null ? "standardlistan" : key.substring(5, key.indexOf('#'))));
         if (c.black) {
             // Svart skärm: sidorna släpps och inget visas
             for (SandboxedPage p : pages) p.clear();
@@ -220,7 +262,7 @@ public class SignageScreen {
             container.setBackgroundColor(android.graphics.Color.BLACK);
             return;
         }
-        list = c.pages != null ? c.pages : defaultList;
+        list = shown;
         if (list.isEmpty()) {
             // Inget att visa: felsidan står kvar tills inställningarna ändrats
             overlay.error(true, false);

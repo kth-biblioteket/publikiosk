@@ -40,7 +40,10 @@ final class SignSchedule {
         String dateFrom, dateTo; // null = alltid
     }
 
+    private static final String DATE = "\\d{4}-\\d{2}-\\d{2}";
+
     private final Map<String, List<SignageScreen.Page>> lists = new LinkedHashMap<>();
+    private final Map<String, String[]> periods = new LinkedHashMap<>(); // lista -> [första, sista] dag
     private final List<Slot> slots = new ArrayList<>();
     private boolean off = false;
 
@@ -58,6 +61,17 @@ final class SignSchedule {
                     String name = it.next();
                     JSONArray a = l.optJSONArray(name);
                     if (a != null) s.lists.put(name, SignageScreen.parse(a.toString(), defaultSeconds, null));
+                }
+            }
+            JSONObject per = o.optJSONObject("periods");
+            if (per != null) {
+                java.util.Iterator<String> it = per.keys();
+                while (it.hasNext()) {
+                    String name = it.next();
+                    JSONArray a = per.optJSONArray(name);
+                    if (a == null || a.length() != 2) continue;
+                    String first = a.optString(0), last = a.optString(1);
+                    if (first.matches(DATE) && last.matches(DATE) && first.compareTo(last) <= 0) s.periods.put(name, new String[]{first, last});
                 }
             }
             JSONArray sl = o.optJSONArray("slots");
@@ -119,7 +133,7 @@ final class SignSchedule {
         return all;
     }
 
-    private static boolean matches(Slot s, Calendar now) {
+    private static boolean matches(Slot s, Calendar now, String today) {
         int dow = (now.get(Calendar.DAY_OF_WEEK) + 5) % 7 + 1; // måndag = 1 … söndag = 7
         if (s.days != null) {
             boolean day = false;
@@ -129,7 +143,6 @@ final class SignSchedule {
         int minute = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE);
         if (minute < s.from || minute >= s.to) return false;
         if (s.dateFrom != null) {
-            String today = String.format(java.util.Locale.ROOT, "%04d-%02d-%02d", now.get(Calendar.YEAR), now.get(Calendar.MONTH) + 1, now.get(Calendar.DAY_OF_MONTH));
             if (today.compareTo(s.dateFrom) < 0 || today.compareTo(s.dateTo) > 0) return false;
         }
         return true;
@@ -137,17 +150,22 @@ final class SignSchedule {
 
     /** Listan som gäller vid now. pages null och inte svart: standardlistan. */
     Choice choose(Calendar now) {
+        String today = SignageScreen.today(now);
         Slot dated = null, plain = null;
         for (Slot s : slots) {
-            if (!matches(s, now)) continue;
+            // En lista vars period inte gäller idag hoppas över, som en okänd lista
+            String[] per = periods.get(s.list);
+            if (per != null && (today.compareTo(per[0]) < 0 || today.compareTo(per[1]) > 0)) continue;
+            if (!matches(s, now, today)) continue;
             if (s.dateFrom != null) {
                 if (dated == null) dated = s;
             } else if (plain == null) plain = s;
         }
         Slot pick = dated != null ? dated : plain;
         if (pick == null) return new Choice(off ? "off" : "default", null, off);
-        List<SignageScreen.Page> list = lists.get(pick.list);
-        if (list == null || list.isEmpty()) return new Choice("default", null, false);
-        return new Choice("list:" + pick.list, list, false);
+        // Sidor som inte gäller idag visas inte; ingen kvar: som en tom lista
+        List<SignageScreen.Page> list = SignageScreen.on(lists.get(pick.list), today);
+        if (list.isEmpty()) return new Choice(off ? "off" : "default", null, off);
+        return new Choice("list:" + pick.list + "#" + SignageScreen.signature(list), list, false);
     }
 }
