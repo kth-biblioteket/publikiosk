@@ -119,7 +119,7 @@ public class MainActivity extends AppCompatActivity {
     private SignageScreen signage;
     private boolean signageMode = false;
     private String savedSignPages = "", savedSignSchedule = "";
-    private int savedSignSeconds = 30;
+    private int savedSignSeconds = 30, savedSignReload = 10;
     private boolean savedSignJs = true, savedSignResourcesAll = true;
     /** Första trycket tog bort attract loopen: resten av samma tryck går inte vidare */
     private boolean swallowGesture = false;
@@ -705,7 +705,7 @@ public class MainActivity extends AppCompatActivity {
         } catch (NumberFormatException ignored) {
             // standard
         }
-        signage.configure(SignageScreen.parse(savedSignPages, savedSignSeconds, homeUrl()), homeUrl(), SignSchedule.parse(savedSignSchedule, savedSignSeconds), savedSignJs, savedSignResourcesAll, scale, newUrlPolicy(),
+        signage.configure(SignageScreen.parse(savedSignPages, savedSignSeconds, homeUrl()), homeUrl(), savedSignReload, SignSchedule.parse(savedSignSchedule, savedSignSeconds), savedSignJs, savedSignResourcesAll, scale, newUrlPolicy(),
                 new SignageScreen.Overlay() {
                     @Override
                     public void error(boolean show, boolean offline) {
@@ -1229,6 +1229,7 @@ public class MainActivity extends AppCompatActivity {
         savedSignPages = sharedPreferences.getString("signpages", "");
         savedSignSchedule = sharedPreferences.getString("signschedule", "");
         savedSignSeconds = sharedPreferences.getInt("signseconds", 30);
+        savedSignReload = sharedPreferences.getInt("signreload", 10);
         savedSignJs = sharedPreferences.getBoolean("signjs", true);
         savedSignResourcesAll = sharedPreferences.getBoolean("signresourcesall", true);
         savedHomeMode = sharedPreferences.getString("homemode", "app");

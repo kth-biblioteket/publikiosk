@@ -93,6 +93,7 @@ public final class ManagedConfig {
         changed |= putString(prefs, e, "signpages", values.optString("SIGN_PAGES", "").trim());
         changed |= putString(prefs, e, "signschedule", values.optString("SIGN_SCHEDULE", "").trim());
         changed |= putInt(prefs, e, "signseconds", intValue(values, "SIGN_SECONDS", 30, 5, 3600));
+        changed |= putInt(prefs, e, "signreload", intValue(values, "SIGN_RELOAD", 10, 0, 1440));
         changed |= putBoolean(prefs, e, "signjs", bool(values, "SIGN_JS", true));
         changed |= putBoolean(prefs, e, "signresourcesall", !"allowed".equals(values.optString("SIGN_RESOURCES", "all").trim()));
         changed |= putString(prefs, e, "apps", values.optString("APPS", "").trim());

@@ -78,6 +78,8 @@
       "help": "Sidorna som visas i tur och ordning när inget i schemat gäller: en JSON-lista [{\"url\":\"https://…\",\"s\":30}], s = sekunder (annars Tid per sida). Tomt: startsidan. Redigeras i admin under Skylt." },
     { "key": "SIGN_SECONDS", "label": "Tid per sida", "group": "skylt", "types": ["signage"], "type": "int", "unit": "sekunder", "default": "30",
       "help": "Hur länge en sida visas när den inte har egna sekunder (5–3600)." },
+    { "key": "SIGN_RELOAD", "label": "Ladda om en ensam sida efter", "group": "skylt", "types": ["signage"], "type": "int", "unit": "minuter", "default": "10",
+      "help": "Minuter. Bara när listan har en enda sida (en Sida som bild får då en ny bild). 0: aldrig." },
     { "key": "SIGN_JS", "label": "Sidorna får köra JavaScript", "group": "skylt", "types": ["signage"], "type": "bool", "default": "true",
       "help": "På som standard, eftersom skyltsidor oftast behöver skript." },
     { "key": "SIGN_RESOURCES", "label": "Sidorna får hämta från", "group": "skylt", "types": ["signage"], "type": "enum", "default": "all",

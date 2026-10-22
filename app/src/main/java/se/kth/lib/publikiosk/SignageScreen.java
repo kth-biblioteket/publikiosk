@@ -77,7 +77,6 @@ public class SignageScreen {
     private static final int PRELOAD_S = 10;        // nästa sida börjar laddas så här många sekunder före bytet
     private static final long SETTLE_MS = 1500;     // tid efter laddning för att skripten ska hinna rita klart
     private static final long MAX_WAIT_MS = 10_000; // väntar högst så här länge på en sida som inte är färdig vid bytet
-    private static final long SINGLE_RELOAD_MS = 10 * 60_000L;
 
     private final Activity activity;
     private final View container;
@@ -89,6 +88,7 @@ public class SignageScreen {
     private List<Page> list = new ArrayList<>();
     private List<Page> defaultList = new ArrayList<>();
     private String startUrl = "";
+    private int reloadMinutes = 10; // SIGN_RELOAD: en ensam sida laddas om så här ofta (0 = aldrig)
     private SignSchedule schedule = null;
     private String currentKey = "";
     /** Varje ny planering av förladdning och byte får ett nummer; äldre planer som väntar ogiltigförklaras */
@@ -192,9 +192,10 @@ public class SignageScreen {
         return sb.toString();
     }
 
-    public void configure(List<Page> pages, String startUrl, SignSchedule schedule, boolean scripts, boolean openResources, int scalePercent, UrlPolicy policy, Overlay overlay) {
+    public void configure(List<Page> pages, String startUrl, int reloadMinutes, SignSchedule schedule, boolean scripts, boolean openResources, int scalePercent, UrlPolicy policy, Overlay overlay) {
         this.defaultList = pages;
         this.startUrl = startUrl;
+        this.reloadMinutes = Math.max(0, Math.min(1440, reloadMinutes));
         this.schedule = schedule;
         this.list = pages;
         this.policy = policy;
@@ -278,15 +279,36 @@ public class SignageScreen {
             final int g = ++generation;
             handler.postDelayed(() -> swapTo(0, 0, g), 800);
         }
-        // En enda sida laddas om med jämna mellanrum
-        if (list.size() == 1) handler.postDelayed(new Runnable() {
+        // En enda sida laddas om med jämna mellanrum (SIGN_RELOAD)
+        if (list.size() == 1 && reloadMinutes > 0) handler.postDelayed(new Runnable() {
             @Override
             public void run() {
                 if (!running || list.size() != 1) return;
-                pages[active].load(list.get(0).url);
-                handler.postDelayed(this, SINGLE_RELOAD_MS);
+                softReload(list.get(0).url);
+                handler.postDelayed(this, reloadMinutes * 60_000L);
             }
-        }, SINGLE_RELOAD_MS);
+        }, reloadMinutes * 60_000L);
+    }
+
+    /** Mjuk omladdning: sidan laddas i den dolda vyn och byts in när den ritat klart. Går den inte att ladda står den gamla kvar. */
+    private void softReload(String url) {
+        pages[1 - active].load(url);
+        Log.i(TAG, "Laddar om den ensamma sidan");
+        final int g = ++generation;
+        pollReload(url, 0, g);
+    }
+
+    private void pollReload(String url, long waited, int g) {
+        if (!running || g != generation) return;
+        SandboxedPage standby = pages[1 - active];
+        if (standby.isOk() && System.currentTimeMillis() - standby.okAt() >= SETTLE_MS) {
+            swapTo(index, 0, g);
+        } else if (standby.hasFailed() || waited >= MAX_WAIT_MS) {
+            Log.w(TAG, "Omladdningen misslyckades, den gamla sidan står kvar");
+            standby.clear();
+        } else {
+            handler.postDelayed(() -> pollReload(url, waited + 500, g), 500);
+        }
     }
 
     public void stop() {
