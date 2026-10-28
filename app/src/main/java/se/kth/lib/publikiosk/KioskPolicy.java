@@ -16,8 +16,9 @@ import android.util.Log;
  * eller ändra enheten. "Lämna kioskläge" (bakom PIN) tar bort allt igen, så att IT kan
  * komma åt inställningarna; nästa start låser på nytt.
  *
- * adb stängs inte av här: det görs först när enheten är ansluten till publicomtools,
- * så att den alltid går att nå för underhåll innan dess.
+ * USB-felsökning (adb) stängs av först när enheten är ansluten till publicomtools och
+ * BLOCK_DEBUGGING är på (standard), så att den alltid går att nå för underhåll innan dess.
+ * Annars kan en besökare koppla in en dator, trycka Tillåt på dialogen och ta sig ur kiosken.
  */
 public class KioskPolicy {
 
@@ -69,6 +70,18 @@ public class KioskPolicy {
         });
         for (String r : RESTRICTIONS) safely(() -> dpm.addUserRestriction(admin, r));
         safely(() -> dpm.setApplicationRestrictions(admin, GBOARD, keyboardConfig()));
+        syncDebugging();
+    }
+
+    /** USB-felsökning av eller på efter inställningen (BLOCK_DEBUGGING, bara för enheter som styrs från publicomtools) */
+    public void syncDebugging() {
+        if (!isDeviceOwner()) return;
+        boolean block = context.getSharedPreferences(ManagedConfig.PREFS, Context.MODE_PRIVATE).getBoolean("blockdebugging", false);
+        safely(() -> {
+            if (block) dpm.addUserRestriction(admin, UserManager.DISALLOW_DEBUGGING_FEATURES);
+            else dpm.clearUserRestriction(admin, UserManager.DISALLOW_DEBUGGING_FEATURES);
+        });
+        Log.i(TAG, "USB-felsökning " + (block ? "avstängd" : "tillåten"));
     }
 
     /**
@@ -98,6 +111,7 @@ public class KioskPolicy {
         // Avstängd är appen inte längre en hemskärm, så Hem går till enhetens vanliga startskärm
         safely(() -> setHomeEnabled(false));
         for (String r : RESTRICTIONS) safely(() -> dpm.clearUserRestriction(admin, r));
+        safely(() -> dpm.clearUserRestriction(admin, UserManager.DISALLOW_DEBUGGING_FEATURES));
         safely(() -> dpm.setApplicationRestrictions(admin, GBOARD, new Bundle()));
     }
 

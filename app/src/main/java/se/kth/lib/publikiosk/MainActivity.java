@@ -939,6 +939,7 @@ public class MainActivity extends AppCompatActivity {
                     statusReporter.stop();
                     publicomtools.forget();
                     ManagedConfig.release(this);
+                    kioskPolicy.syncDebugging(); // frånkopplad enhet: felsökning tillåten igen
                     updatePublicomtoolsUi();
                 })
                 .setNegativeButton("Avbryt", null)
@@ -976,6 +977,7 @@ public class MainActivity extends AppCompatActivity {
                 org.json.JSONObject config = publicomtools.fetchConfig();
                 if (config == null) return;
                 boolean changed = ManagedConfig.apply(this, config);
+                kioskPolicy.syncDebugging();
                 runOnUiThread(() -> {
                     if (changed) {
                         loadSettings();
@@ -989,7 +991,10 @@ public class MainActivity extends AppCompatActivity {
             } catch (Exception e) {
                 Log.w("publikiosk", "Inställningarna kunde inte hämtas: " + e.getMessage());
                 runOnUiThread(() -> {
-                    if (!publicomtools.isEnrolled()) ManagedConfig.release(this);
+                    if (!publicomtools.isEnrolled()) {
+                        ManagedConfig.release(this);
+                        kioskPolicy.syncDebugging(); // frånkopplad enhet: felsökning tillåten igen
+                    }
                     updatePublicomtoolsUi();
                     if (showResult) Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
                 });

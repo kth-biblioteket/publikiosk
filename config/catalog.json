@@ -113,6 +113,8 @@
       "options": [{ "value": "landscape", "label": "Liggande" }, { "value": "portrait", "label": "Stående" }] },
     { "key": "INITIAL_SCALE", "label": "Zoom", "group": "skarm", "type": "int", "unit": "procent", "default": "100" },
     { "key": "FULLSCREEN", "label": "Helskärm", "group": "skarm", "type": "bool", "default": "true" },
+    { "key": "BLOCK_DEBUGGING", "label": "Stäng av USB-felsökning", "group": "teknik", "type": "bool", "default": "true", "advanced": true,
+      "help": "På: USB-felsökning (adb) är avstängd när enheten styrs från publicomtools, så att ingen kan koppla in en dator och ta sig ur kiosken. Av: den går att slå på i enhetens inställningar. Lämna kioskläge (med PIN) släpper den tillfälligt. Gäller bara enheter där appen är device owner." },
     { "key": "HEARTBEAT_INTERVAL", "label": "Statusrapport var", "group": "teknik", "type": "int", "unit": "minuter", "default": "5", "advanced": true },
     { "key": "APP_RELEASE", "label": "Appversion", "group": "teknik", "type": "string", "default": "latest", "advanced": true,
       "help": "latest, eller en release-tagg som v3.7.1." },

@@ -53,6 +53,7 @@ public final class ManagedConfig {
         changed |= putInt(prefs, e, "orientation", "portrait".equals(orientation) ? 0 : 1);
         changed |= putString(prefs, e, "initialscale", String.valueOf(intValue(values, "INITIAL_SCALE", 100, 10, 500)));
         changed |= putBoolean(prefs, e, "fullscreen", bool(values, "FULLSCREEN", true));
+        changed |= putBoolean(prefs, e, "blockdebugging", bool(values, "BLOCK_DEBUGGING", true));
 
         String navigation = values.optString("NAVIGATION", "auto").toLowerCase(Locale.ROOT);
         if (!navigation.equals("always") && !navigation.equals("none")) navigation = "auto";
@@ -121,7 +122,7 @@ public final class ManagedConfig {
 
     /** Enheten kopplas från (t ex inskriven på nytt): menyn går att använda igen. */
     public static void release(Context context) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(PREF_MANAGED, false).apply();
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(PREF_MANAGED, false).putBoolean("blockdebugging", false).apply();
     }
 
     public static String configVersion(Context context) {
