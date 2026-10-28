@@ -126,6 +126,7 @@ public class StatusReporter {
             Boolean loaded = state.pageLoaded();
             if (loaded != null) s.put("pageLoaded", loaded);
             s.put("kioskLocked", kioskLocked());
+            s.put("events", EventLog.recentJson(context, 20));
             Intent battery = context.registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
             if (battery != null) {
                 int level = battery.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);

@@ -289,6 +289,7 @@ public class AutoUpdate {
     }
 
     private void installApk(Uri apkUri) {
+        EventLog.add(context, "Installerar uppdatering");
 
         try {
 

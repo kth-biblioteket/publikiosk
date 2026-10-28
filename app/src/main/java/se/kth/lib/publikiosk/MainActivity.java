@@ -118,6 +118,7 @@ public class MainActivity extends AppCompatActivity {
     /** HOME_MODE=signage: sidor i tur och ordning i helskärm, bara visa */
     private SignageScreen signage;
     private boolean signageMode = false;
+    private boolean lastLoggedFocus = true;
     private String savedSignPages = "", savedSignSchedule = "";
     private int savedSignSeconds = 30, savedSignReload = 10;
     private boolean savedSignJs = true, savedSignResourcesAll = true;
@@ -821,6 +822,7 @@ public class MainActivity extends AppCompatActivity {
         if (response.optBoolean("reboot")) {
             whenIdle("reboot", () -> {
                 VisitLog.get(this).end("reboot");
+                EventLog.add(this, "Omstart av enheten begärd från publicomtools");
                 if (!kioskPolicy.reboot()) Log.w("publikiosk", "Omstart stöds inte på enheten (kräver Android 7 och device owner)");
             });
         } else if (response.optBoolean("reload")) {
@@ -1005,6 +1007,7 @@ public class MainActivity extends AppCompatActivity {
 
     // Avsluta kioskläge
     private void quitKiosk() {
+        EventLog.add(this, "Lämnade kioskläge (PIN)");
         kioskPolicy.release();
         stopLockTask();
         Toast.makeText(MainActivity.this, "Kioskläge avslutat", Toast.LENGTH_SHORT).show();
@@ -1211,11 +1214,24 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
+        EventLog.add(this, "Aktiviteten startad" + (lockTaskNow() ? ", låst i kioskläge" : ", INTE låst i kioskläge"));
     }
 
     @Override
     protected void onStop() {
         super.onStop();
+        EventLog.add(this, "Aktiviteten stoppad");
+    }
+
+    private boolean lockTaskNow() {
+        android.app.ActivityManager am = (android.app.ActivityManager) getSystemService(ACTIVITY_SERVICE);
+        return am != null && am.getLockTaskModeState() != android.app.ActivityManager.LOCK_TASK_MODE_NONE;
+    }
+
+    @Override
+    public void onTrimMemory(int level) {
+        super.onTrimMemory(level);
+        if (level >= TRIM_MEMORY_RUNNING_LOW) EventLog.add(this, "Minnestryck, nivå " + level);
     }
 
     /**
@@ -1649,6 +1665,10 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
+        if (hasFocus != lastLoggedFocus) {
+            lastLoggedFocus = hasFocus;
+            EventLog.add(this, hasFocus ? "Fönstret fick fokus" : "Fönstret förlorade fokus");
+        }
         if (hasFocus && fullscreenCheckbox.isChecked() && !keyboardOpen) {
             hideSystemUI();
         }
@@ -1657,6 +1677,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        EventLog.add(this, "Aktiviteten förstörd" + (isFinishing() ? " (avslutas)" : isChangingConfigurations() ? " (konfigurationsändring)" : " (av systemet)"));
         statusReporter.stop();
         if (network != null) network.stop();
         commandHandler.removeCallbacksAndMessages(null);

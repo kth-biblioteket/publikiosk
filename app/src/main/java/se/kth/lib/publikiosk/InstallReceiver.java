@@ -12,6 +12,7 @@ public class InstallReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         if (Intent.ACTION_MY_PACKAGE_REPLACED.equals(intent.getAction())) {
             Log.e(TAG, "Our app was updated!");
+            EventLog.add(context, "Appen uppdaterades (MY_PACKAGE_REPLACED)");
             restartApp(context);
             return;
         }

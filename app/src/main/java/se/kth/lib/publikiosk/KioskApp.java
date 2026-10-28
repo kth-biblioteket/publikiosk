@@ -16,14 +16,41 @@ import android.util.Log;
 public class KioskApp extends Application {
 
     private static final long RESTART_DELAY_MS = 1500;
+    private final android.os.Handler aliveHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+
+    /** Processen startade: när förra körningen sist visade livstecken, och om enheten startats om sedan dess */
+    private void logStart() {
+        long last = EventLog.lastAlive(this);
+        String version = "?";
+        try {
+            version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+        } catch (Exception ignored) {
+        }
+        int boot = -1;
+        try {
+            boot = android.provider.Settings.Global.getInt(getContentResolver(), "boot_count", -1);
+        } catch (Exception ignored) {
+        }
+        EventLog.add(this, "Start " + version + ", enhetens drifttid " + SystemClock.elapsedRealtime() / 1000 + " s, uppstart nr " + boot
+                + (last > 0 ? ", förra livstecken " + EventLog.time(last) : ""));
+        aliveHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                EventLog.alive(KioskApp.this);
+                aliveHandler.postDelayed(this, 60_000);
+            }
+        }, 60_000);
+    }
 
     @Override
     public void onCreate() {
         super.onCreate();
+        logStart();
         if (!new KioskPolicy(this).isDeviceOwner()) return;
 
         Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
             Log.e("KioskApp", "Appen kraschade, startar om kiosken", error);
+            EventLog.add(this, "Krasch: " + error);
             try {
                 Intent restart = new Intent(this, MainActivity.class)
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
