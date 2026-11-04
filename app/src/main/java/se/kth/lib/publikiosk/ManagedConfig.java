@@ -80,6 +80,7 @@ public final class ManagedConfig {
         String messageIcon = values.optString("LAUNCHER_MESSAGE_ICON", "info").trim();
         changed |= putString(prefs, e, "launchermessageicon", messageIcon.isEmpty() ? "info" : messageIcon);
         changed |= putString(prefs, e, "launcherhtmlurl", values.optString("LAUNCHER_HTML_URL", "").trim());
+        changed |= putString(prefs, e, "launcherhtmlurl_en", values.optString("LAUNCHER_HTML_URL_EN", "").trim());
         changed |= putInt(prefs, e, "launcherhtmlheight", intValue(values, "LAUNCHER_HTML_HEIGHT", 100, 40, 400));
         changed |= putBoolean(prefs, e, "launcherhtmljs", bool(values, "LAUNCHER_HTML_JS", false));
         changed |= putBoolean(prefs, e, "launcherhtmltouch", bool(values, "LAUNCHER_HTML_TOUCH", false));

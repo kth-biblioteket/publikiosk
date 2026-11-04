@@ -108,7 +108,7 @@ public class MainActivity extends AppCompatActivity {
     private String savedLauncherMessage = "", savedLauncherMessageEn = "", savedLauncherMessageUrl = "", savedLauncherMessageStyle = "warning", savedLauncherMessageIcon = "info";
     private int savedLauncherRefresh = 1;
     private int savedLauncherPerPage = 4;
-    private String savedLauncherHtmlUrl = "";
+    private String savedLauncherHtmlUrl = "", savedLauncherHtmlUrlEn = "";
     private int savedLauncherHtmlHeight = 100;
     private boolean savedLauncherHtmlJs = false, savedLauncherHtmlTouch = false;
     private String savedAttractUrl = "";
@@ -1270,6 +1270,7 @@ public class MainActivity extends AppCompatActivity {
         savedLauncherRefresh = sharedPreferences.getInt("launcherrefresh", 1);
         savedLauncherPerPage = sharedPreferences.getInt("launcherperpage", 4);
         savedLauncherHtmlUrl = sharedPreferences.getString("launcherhtmlurl", "");
+        savedLauncherHtmlUrlEn = sharedPreferences.getString("launcherhtmlurl_en", "");
         savedLauncherHtmlHeight = sharedPreferences.getInt("launcherhtmlheight", 100);
         savedLauncherHtmlJs = sharedPreferences.getBoolean("launcherhtmljs", false);
         savedLauncherHtmlTouch = sharedPreferences.getBoolean("launcherhtmltouch", false);
@@ -1346,7 +1347,7 @@ public class MainActivity extends AppCompatActivity {
                     savedLauncherSubtitle, savedLauncherSubtitleEn, savedLauncherFooter, savedLauncherFooterEn),
                     new LauncherFooter.Config(savedLauncherFields, savedLauncherMessage, savedLauncherMessageEn,
                             savedLauncherMessageUrl, savedLauncherMessageStyle, savedLauncherRefresh, savedLauncherMessageIcon,
-                            savedLauncherHtmlUrl, savedLauncherHtmlHeight, savedLauncherHtmlJs, savedLauncherHtmlTouch),
+                            savedLauncherHtmlUrl, savedLauncherHtmlUrlEn, savedLauncherHtmlHeight, savedLauncherHtmlJs, savedLauncherHtmlTouch),
                     newUrlPolicy(), uiEnglish);
             attract.configure(savedAttractUrl, savedAttractAfter, savedAttractJs, savedAttractRefresh, newUrlPolicy(),
                     getResources().getConfiguration().orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT,

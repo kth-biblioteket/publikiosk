@@ -75,13 +75,14 @@ public class LauncherFooter {
         final String message, messageEn, messageUrl, style, icon;
         final int refreshMinutes;
         /** En hel sida från en https-adress i stället för fälten (tom: inga), dess höjd i skisspixlar, och om skript och tryck tillåts */
-        final String htmlUrl;
+        final String htmlUrl, htmlUrlEn; // htmlUrlEn: egen adress när besökaren valt English (tom: den vanliga)
         final int htmlHeight;
         final boolean htmlJs, htmlTouch;
 
         public Config(String[] fieldLines, String message, String messageEn, String messageUrl, String style, int refreshMinutes, String icon,
-                      String htmlUrl, int htmlHeight, boolean htmlJs, boolean htmlTouch) {
+                      String htmlUrl, String htmlUrlEn, int htmlHeight, boolean htmlJs, boolean htmlTouch) {
             this.htmlUrl = htmlUrl != null && htmlUrl.startsWith("https://") ? htmlUrl : "";
+            this.htmlUrlEn = htmlUrlEn != null && htmlUrlEn.startsWith("https://") ? htmlUrlEn : "";
             this.htmlHeight = Math.max(40, Math.min(400, htmlHeight));
             this.htmlJs = htmlJs;
             this.htmlTouch = htmlTouch;
@@ -124,7 +125,7 @@ public class LauncherFooter {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Map<String, Cached> cache = new HashMap<>();
-    private Config config = new Config(new String[0], "", "", "", "warning", 1, "info", "", 100, false, false);
+    private Config config = new Config(new String[0], "", "", "", "warning", 1, "info", "", "", 100, false, false);
     private UrlPolicy policy;
     private boolean english, portrait, running;
     private float u = 1f;
@@ -345,7 +346,7 @@ public class LauncherFooter {
     }
 
     private void refreshHtml() {
-        if (config.hasHtml()) htmlPage.load(config.htmlUrl);
+        if (config.hasHtml()) htmlPage.load(english && !config.htmlUrlEn.isEmpty() ? config.htmlUrlEn : config.htmlUrl);
         else htmlPage.clear();
     }
 
