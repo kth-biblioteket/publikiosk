@@ -8,6 +8,8 @@ import androidx.core.content.res.ResourcesCompat;
 /**
  * Figtree, KTH:s profiltypsnitt, som följer med i appen (kioskerna har ingen Play-tjänst som kan
  * ladda ner typsnitt). Licens: SIL Open Font License, se docs/licenses/Figtree-OFL.txt.
+ * Filerna är behandlade med fontTools removeOverlaps: u, n och m var uppbyggda av överlappande konturer,
+ * vilket kan ge ett lodrätt hårstreck genom bokstaven vid vissa skalor (som i Linux-kiosken).
  */
 final class Fonts {
 
