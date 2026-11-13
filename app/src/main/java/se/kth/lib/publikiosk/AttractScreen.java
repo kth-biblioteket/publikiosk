@@ -99,6 +99,11 @@ public class AttractScreen {
         if (isEnabled()) handler.post(refresh);
     }
 
+    /** Kritiskt minnestryck: släpp sidan när den inte syns (den laddas på nytt när förstasidan visas igen) */
+    public void releaseMemory() {
+        if (!shown) page.clear();
+    }
+
     public void stop() {
         running = false;
         handler.removeCallbacks(refresh);

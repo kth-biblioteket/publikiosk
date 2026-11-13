@@ -127,6 +127,19 @@ public class StatusReporter {
             if (loaded != null) s.put("pageLoaded", loaded);
             s.put("kioskLocked", kioskLocked());
             s.put("events", EventLog.recentJson(context, 20));
+            try {
+                ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+                ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
+                am.getMemoryInfo(mi);
+                s.put("memTotalMb", mi.totalMem >> 20);
+                s.put("memAvailMb", mi.availMem >> 20);
+                s.put("memLow", mi.lowMemory);
+                // Appens egen process; webbvyernas renderare är en separat process och ingår inte
+                android.os.Debug.MemoryInfo[] pm = am.getProcessMemoryInfo(new int[]{android.os.Process.myPid()});
+                if (pm.length > 0) s.put("appPssMb", pm[0].getTotalPss() >> 10);
+            } catch (Exception e) {
+                Log.w(TAG, "Kunde inte läsa minnet", e);
+            }
             Intent battery = context.registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
             if (battery != null) {
                 int level = battery.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);

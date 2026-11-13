@@ -1231,8 +1231,30 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onTrimMemory(int level) {
         super.onTrimMemory(level);
-        if (level >= TRIM_MEMORY_RUNNING_LOW) EventLog.add(this, "Minnestryck, nivå " + level);
+        if (level < TRIM_MEMORY_RUNNING_LOW) return;
+        // En rad per minut med högsta nivån och antal, så att annat i loggen inte trängs undan
+        long now = android.os.SystemClock.elapsedRealtime();
+        trimCount++;
+        trimMax = Math.max(trimMax, level);
+        if (trimLogAt == 0 || now - trimLogAt >= 60_000) {
+            android.app.ActivityManager.MemoryInfo mi = new android.app.ActivityManager.MemoryInfo();
+            ((android.app.ActivityManager) getSystemService(ACTIVITY_SERVICE)).getMemoryInfo(mi);
+            EventLog.add(this, "Minnestryck, nivå " + trimMax + (trimCount > 1 ? " (" + trimCount + " st)" : "")
+                    + ", ledigt " + (mi.availMem >> 20) + " MB");
+            trimLogAt = now;
+            trimCount = 0;
+            trimMax = 0;
+        }
+        // Kritiskt: släpp det som inte syns (fotradens och attract-sidans webbvyer; skyltens vyer rörs inte)
+        if (level >= TRIM_MEMORY_RUNNING_CRITICAL) {
+            if (attract != null) attract.releaseMemory();
+            if (launcher != null) launcher.releaseMemory();
+            if (myWeb != null) myWeb.clearCache(true);
+        }
     }
+
+    private long trimLogAt = 0;
+    private int trimCount = 0, trimMax = 0;
 
     /**
      * Ladda settings från lokalt sparade

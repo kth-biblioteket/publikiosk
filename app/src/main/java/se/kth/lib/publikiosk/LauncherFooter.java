@@ -191,6 +191,11 @@ public class LauncherFooter {
         handler.removeCallbacks(tick);
     }
 
+    /** Kritiskt minnestryck medan förstasidan inte visas: släpp fotradens webbsida (den laddas på nytt vid nästa visning) */
+    void releaseMemory() {
+        if (!running) htmlPage.clear();
+    }
+
     private void build() {
         valueViews.clear();
         valueFields.clear();

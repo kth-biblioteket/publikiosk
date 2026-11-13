@@ -159,6 +159,11 @@ public class LauncherScreen {
         infoFooter.stop();
     }
 
+    /** Kritiskt minnestryck: släpp fotradens webbsida när förstasidan inte visas */
+    public void releaseMemory() {
+        if (!isShown()) infoFooter.releaseMemory();
+    }
+
     /**
      * Bygger sidan. Texter som är tomma får standardtexten på besökarens språk; en egen text (från
      * LAUNCHER_TITLE, LAUNCHER_SUBTITLE) visas som den är. Tom fottext döljer raden.
