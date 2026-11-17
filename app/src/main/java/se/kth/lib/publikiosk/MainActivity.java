@@ -61,6 +61,12 @@ import java.util.Objects;
 public class MainActivity extends AppCompatActivity {
 
     WebView myWeb;
+    /** Antal aktiviteter som finns just nu i processen (se KioskApp.revive) */
+    private static int live = 0;
+
+    static int liveInstances() {
+        return live;
+    }
     private DrawerLayout drawerLayout;
     private View triggerArea;
     private EditText urlInput;
@@ -170,6 +176,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        live++;
         super.onCreate(savedInstanceState);
 
         applyWebDebug(getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getBoolean("webdebug", false));
@@ -1214,6 +1221,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
+        EventLog.setWindow(this, true);
         EventLog.add(this, "Aktiviteten startad" + (lockTaskNow() ? ", låst i kioskläge" : ", INTE låst i kioskläge"));
     }
 
@@ -1700,6 +1708,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        live--;
+        // Avslutad av appen själv och ingen annan aktivitet kvar: då ska ingen ny start ske efter att processen dött
+        if (live <= 0 && isFinishing()) EventLog.setWindow(this, false);
         EventLog.add(this, "Aktiviteten förstörd" + (isFinishing() ? " (avslutas)" : isChangingConfigurations() ? " (konfigurationsändring)" : " (av systemet)"));
         statusReporter.stop();
         if (network != null) network.stop();

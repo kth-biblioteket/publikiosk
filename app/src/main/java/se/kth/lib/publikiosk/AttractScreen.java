@@ -14,12 +14,16 @@ import android.webkit.WebView;
  */
 public class AttractScreen {
 
-    private final WebView view;
+    private final Activity activity;
+    private WebView view;
     private final SandboxedPage page;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private UrlPolicy policy;
     private String url = "";
     private int afterSeconds = 0, refreshMinutes = 10;
+    private static final long RECYCLE_MS = 3 * 3600_000L;
+    private long recycledAt = System.currentTimeMillis();
+    private int scalePercent = 100;
     private boolean scripts = false, portrait = false, running = false, shown = false;
 
     private final Runnable refresh = new Runnable() {
@@ -28,6 +32,7 @@ public class AttractScreen {
             if (!running) return;
             // En pausad sida laddas inte om: väck den en stund
             if (!shown) page.resume();
+            if (!shown && System.currentTimeMillis() - recycledAt >= RECYCLE_MS) recycle();
             page.load(url);
             if (!shown) handler.postDelayed(() -> {
                 if (!shown) page.pause();
@@ -37,6 +42,7 @@ public class AttractScreen {
     };
 
     public AttractScreen(Activity activity) {
+        this.activity = activity;
         view = activity.findViewById(R.id.attract_view);
         page = new SandboxedPage(view, new SandboxedPage.Host() {
             @Override
@@ -65,7 +71,8 @@ public class AttractScreen {
         this.refreshMinutes = Math.max(1, Math.min(60, refreshMinutes));
         this.policy = policy;
         this.portrait = portrait;
-        page.configure(scripts, false, Math.round(100f * widthPx / (portrait ? 800f : 1280f)));
+        scalePercent = Math.round(100f * widthPx / (portrait ? 800f : 1280f));
+        page.configure(scripts, false, scalePercent);
         if (!isEnabled()) {
             hide();
             page.clear();
@@ -102,6 +109,35 @@ public class AttractScreen {
     /** Kritiskt minnestryck: släpp sidan när den inte syns (den laddas på nytt när förstasidan visas igen) */
     public void releaseMemory() {
         if (!shown) page.clear();
+    }
+
+    /**
+     * Byt ut WebView mot en ny, då och då och bara när sidan inte syns: en WebView som visat en
+     * animerad sida i timmar växer, en ny börjar om. Sidan laddas direkt efteråt av anroparen.
+     */
+    private void recycle() {
+        try {
+            android.view.ViewGroup parent = (android.view.ViewGroup) view.getParent();
+            if (parent == null) return;
+            WebView old = view;
+            WebView fresh = new WebView(activity);
+            fresh.setId(old.getId());
+            fresh.setBackground(old.getBackground());
+            fresh.setElevation(old.getElevation());
+            fresh.setVisibility(View.GONE);
+            int index = parent.indexOfChild(old);
+            parent.removeView(old);
+            parent.addView(fresh, index, old.getLayoutParams());
+            old.destroy();
+            view = fresh;
+            page.rebind(fresh);
+            page.configure(scripts, false, scalePercent);
+            recycledAt = System.currentTimeMillis();
+            EventLog.add(activity, "Attract: ny webbvy (minnet släppt)");
+        } catch (Exception e) {
+            recycledAt = System.currentTimeMillis();
+            android.util.Log.w("AttractScreen", "recycle", e);
+        }
     }
 
     public void stop() {

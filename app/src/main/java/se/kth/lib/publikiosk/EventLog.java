@@ -58,6 +58,18 @@ final class EventLog {
         }
     }
 
+    /** Kioskens fönster finns (sätts när aktiviteten startat, rensas när sista aktiviteten avslutats av appen själv) */
+    static void setWindow(Context c, boolean up) {
+        try {
+            prefs(c).edit().putBoolean("windowup", up).commit();
+        } catch (Exception ignored) {
+        }
+    }
+
+    static boolean windowUp(Context c) {
+        return prefs(c).getBoolean("windowup", false);
+    }
+
     static long lastAlive(Context c) {
         return prefs(c).getLong(KEY_ALIVE, 0);
     }

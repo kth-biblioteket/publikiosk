@@ -42,11 +42,37 @@ public class KioskApp extends Application {
         }, 60_000);
     }
 
+    /**
+     * Android kan döda kiosken när minnet tar slut (inget undantag, så kraschhanteraren nedan kör aldrig) och
+     * startar sedan bara processen igen för enhetsadministratören, utan fönster: skärmen visar då enhetens
+     * vanliga startskärm. Fanns kioskens fönster när processen dog och ingen aktivitet startar inom några
+     * sekunder, startas kiosken här.
+     */
+    private void revive() {
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= 28 && !getPackageName().equals(Application.getProcessName())) return;
+            if (!EventLog.windowUp(this)) return;
+            aliveHandler.postDelayed(() -> {
+                if (MainActivity.liveInstances() > 0) return;
+                EventLog.add(this, "Processen startades utan fönster, startar kiosken");
+                try {
+                    startActivity(new Intent(this, MainActivity.class)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+                } catch (Exception e) {
+                    EventLog.add(this, "Kunde inte starta kiosken: " + e);
+                }
+            }, 3000);
+        } catch (Exception e) {
+            Log.w("KioskApp", "revive", e);
+        }
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
         logStart();
         if (!new KioskPolicy(this).isDeviceOwner()) return;
+        revive();
 
         Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
             Log.e("KioskApp", "Appen kraschade, startar om kiosken", error);

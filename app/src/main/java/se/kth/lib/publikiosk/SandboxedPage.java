@@ -31,7 +31,7 @@ final class SandboxedPage {
         void recovered();
     }
 
-    private final WebView view;
+    private WebView view;
     private final Host host;
     private boolean failed = false;
     /** Det pågående försöket har gått fel (Chromiums felsida räknas inte som en lyckad sida) */
@@ -48,8 +48,22 @@ final class SandboxedPage {
     private long okAt = 0;
 
     SandboxedPage(WebView view, Host host) {
-        this.view = view;
         this.host = host;
+        bind(view);
+    }
+
+    /** Byter till en ny, orörd WebView (den gamla släpps av den som äger den). Tillstånd nollställs; configure måste anropas igen. */
+    void rebind(WebView newView) {
+        loaded = "";
+        failed = false;
+        attemptFailed = false;
+        ok = false;
+        netError = false;
+        bind(newView);
+    }
+
+    private void bind(WebView view) {
+        this.view = view;
         WebSettings ws = view.getSettings();
         ws.setJavaScriptEnabled(false);
         ws.setDomStorageEnabled(false);
