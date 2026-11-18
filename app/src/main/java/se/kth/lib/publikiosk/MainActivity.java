@@ -1713,6 +1713,10 @@ public class MainActivity extends AppCompatActivity {
         if (live <= 0 && isFinishing()) EventLog.setWindow(this, false);
         EventLog.add(this, "Aktiviteten förstörd" + (isFinishing() ? " (avslutas)" : isChangingConfigurations() ? " (konfigurationsändring)" : " (av systemet)"));
         statusReporter.stop();
+        // Timrarna i skärmarna håller annars den förstörda aktiviteten och dess webbvyer vid liv
+        if (attract != null) attract.stop();
+        if (signage != null && signage.isRunning()) signage.stop();
+        if (launcher != null) launcher.hide();
         if (network != null) network.stop();
         commandHandler.removeCallbacksAndMessages(null);
         background.shutdown();
